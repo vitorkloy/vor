@@ -2,6 +2,6 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Janela radial do marco 1",
-  "windows": ["radial"],
+  "windows": ["radial", "settings"],
   "permissions": ["core:default"]
 }

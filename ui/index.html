@@ -9,12 +9,21 @@
   <body>
     <div id="wheel" class="zn-radial" hidden>
       <div class="zn-radial-scrim"></div>
-      <div id="sectors"></div>
-      <button id="hub" class="zn-radial-hub" type="button" aria-label="Fechar">
-        <img class="hub-mark" src="logo.svg" alt="" width="88" height="88" />
-        <span id="workspace" class="hub-ws"></span>
-      </button>
-      <div id="label" class="zn-radial-label"></div>
+      <div id="origin" class="zn-origin">
+        <div id="sectors"></div>
+        <button id="hub" class="zn-radial-hub" type="button" aria-label="Fechar">
+          <svg class="hub-ring" viewBox="0 0 76 76" aria-hidden="true">
+            <circle cx="38" cy="38" r="37.25" fill="none" stroke="rgba(255,255,255,0.30)" stroke-width="1.5" />
+          </svg>
+          <img class="hub-mark" src="logo.svg" alt="" width="42" height="42" />
+        </button>
+        <div id="pill" class="zn-radial-pill">
+          <span>VOR</span>
+          <span class="pill-sep">/</span>
+          <span id="workspace"></span>
+        </div>
+        <div id="label" class="zn-radial-label"></div>
+      </div>
     </div>
     <script src="main.js"></script>
   </body>

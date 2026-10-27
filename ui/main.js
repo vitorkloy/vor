@@ -14,7 +14,6 @@ let anchor = null;
 function core() {
   return window.__TAURI__ && window.__TAURI__.core;
 }
-
 function eventApi() {
   return window.__TAURI__ && window.__TAURI__.event;
 }
@@ -24,16 +23,15 @@ function layout(list) {
   const n = list.length;
   list.forEach((item, i) => {
     const angle = -Math.PI / 2 + (2 * Math.PI * i) / n;
-    const dx = Math.cos(angle) * RADIUS - 36;
-    const dy = Math.sin(angle) * RADIUS - 36;
+    const dx = Math.cos(angle) * RADIUS;
+    const dy = Math.sin(angle) * RADIUS;
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "sector";
+    btn.className = "zn-slice";
     btn.textContent = short(item.label);
     btn.title = item.label;
-    btn.style.setProperty("--dx", `${dx}px`);
-    btn.style.setProperty("--dy", `${dy}px`);
-    btn.style.animationDelay = `${i * 18}ms`;
+    btn.style.left = `${dx}px`;
+    btn.style.top = `${dy}px`;
     btn.addEventListener("pointerenter", () => setAimed(i));
     btn.addEventListener("click", () => confirm(i));
     sectorsEl.appendChild(btn);
@@ -41,14 +39,12 @@ function layout(list) {
 }
 
 function short(label) {
-  return label.length > 14 ? `${label.slice(0, 13)}…` : label;
+  return label.length > 12 ? `${label.slice(0, 11)}…` : label;
 }
 
 function setAimed(index) {
   aimed = index;
-  [...sectorsEl.children].forEach((el, i) => {
-    el.classList.toggle("is-aimed", i === index);
-  });
+  [...sectorsEl.children].forEach((el, i) => el.classList.toggle("is-aimed", i === index));
   labelEl.textContent = index >= 0 ? items[index].label : "";
 }
 
@@ -58,18 +54,15 @@ function aimFromScreen(x, y) {
   const cy = anchor.originY + anchor.height / 2;
   const dx = x - cx;
   const dy = y - cy;
-  const dist = Math.hypot(dx, dy);
-  if (dist < DEAD || items.length === 0) {
+  if (Math.hypot(dx, dy) < DEAD || items.length === 0) {
     setAimed(-1);
     return;
   }
-  let angle = Math.atan2(dy, dx);
   const n = items.length;
   const step = (2 * Math.PI) / n;
-  let rel = angle + Math.PI / 2;
+  let rel = Math.atan2(dy, dx) + Math.PI / 2;
   if (rel < 0) rel += Math.PI * 2;
-  const index = Math.round(rel / step) % n;
-  setAimed(index);
+  setAimed(Math.round(rel / step) % n);
 }
 
 async function confirm(index) {
@@ -77,11 +70,10 @@ async function confirm(index) {
     hide();
     return;
   }
-  const id = items[index].id;
   const api = core();
   if (!api) return;
   try {
-    await api.invoke("launch_item", { id });
+    await api.invoke("launch_item", { id: items[index].id });
   } catch (err) {
     labelEl.textContent = String(err);
     return;
@@ -100,10 +92,10 @@ async function load() {
   const api = core();
   if (!api) {
     items = [
-      { id: "a", label: "Notas", source: "sample" },
-      { id: "b", label: "Arquivos", source: "sample" },
-      { id: "c", label: "Terminal", source: "sample" },
-      { id: "d", label: "Calculadora", source: "sample" },
+      { id: "a", label: "Notas" },
+      { id: "b", label: "Arquivos" },
+      { id: "c", label: "Terminal" },
+      { id: "d", label: "Calculadora" },
     ];
     workspaceEl.textContent = "Principal";
     layout(items);
@@ -117,7 +109,6 @@ async function load() {
 }
 
 hubEl.addEventListener("click", hide);
-
 document.addEventListener("keydown", (ev) => {
   if (ev.key === "Escape") hide();
 });
