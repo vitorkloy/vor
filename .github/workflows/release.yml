@@ -27,11 +27,11 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-      - name: Publicar release v0.1.0
+      - name: Publicar release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.1.0
-          name: VOR 0.1.0
+          tag_name: ${{ github.ref_name }}
+          name: VOR ${{ github.ref_name }}
           files: |
             src-tauri/target/release/bundle/nsis/*.exe
             src-tauri/target/release/bundle/msi/*.msi

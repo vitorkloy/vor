@@ -35,7 +35,7 @@ const pages = {
     title: "Perfil",
     lead: "Identidade do produto nesta máquina.",
     rows: [
-      ["Produto", "VOR 0.1.0 — Visual Operations Router."],
+      ["Produto", "VOR 0.1.1 — Visual Operations Router."],
       ["Identificador", "com.vitorkloy.vor"],
     ],
   },

@@ -1,7 +1,7 @@
 {
   "name": "vor",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "VOR — Visual Operations Router (Tauri, marco 1)",
   "scripts": {
     "tauri": "tauri",
