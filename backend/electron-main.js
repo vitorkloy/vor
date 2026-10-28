@@ -2941,6 +2941,19 @@ app.whenReady().then(async () => {
     if (typeof ui.fileWheelScale === "number") {
       currentSettings.fileWheelScale = ui.fileWheelScale;
     }
+    if (ui.uiLanguage === "system" || ui.uiLanguage === "en" || ui.uiLanguage === "pt") {
+      currentSettings.uiLanguage = ui.uiLanguage;
+    }
+    if (typeof ui.language === "string") currentSettings.language = ui.language;
+  };
+
+  let rebuildTrayMenu = () => {};
+  const trayMenuLocale = () => {
+    const pref = currentSettings.uiLanguage || (currentSettings.language === "pt" ? "pt" : "system");
+    if (pref === "pt") return "pt";
+    if (pref === "en") return "en";
+    const loc = (app.getLocale() || "en").toLowerCase();
+    return loc.startsWith("pt") ? "pt" : "en";
   };
 
   const saveSettings = (newSettings) => {
@@ -3255,6 +3268,7 @@ app.whenReady().then(async () => {
       mergeGameModeConfig(ui.gameMode);
     }
     syncMouseHookState();
+    try { rebuildTrayMenu(); } catch (e) { diagLog(`[Tray] ${e.message}`); }
     try {
       refreshShortcutsFromFullConfig?.();
     } catch (e) {
@@ -3791,20 +3805,26 @@ app.whenReady().then(async () => {
     }
     const resizedIcon = trayIcon.resize({ width: 16, height: 16 });
     tray = new Tray(resizedIcon);
-    const contextMenu = Menu.buildFromTemplate([
-      {
-        label: "Open Settings",
-        click: async () => {
-          try {
-            await ensureMainWindow();
-            openSettingsFromMainProcess();
-          } catch (e) {
-            diagLog(`[Tray] Abrir Configurações: ${e.message}`);
-          }
+    rebuildTrayMenu = () => {
+      if (!tray || tray.isDestroyed()) return;
+      const pt = trayMenuLocale() === "pt";
+      tray.setContextMenu(Menu.buildFromTemplate([
+        {
+          label: pt ? "Abrir configurações" : "Open Settings",
+          click: async () => {
+            try {
+              await ensureMainWindow();
+              openSettingsFromMainProcess();
+            } catch (e) {
+              diagLog(`[Tray] Abrir Configurações: ${e.message}`);
+            }
+          },
         },
-      },
-      { label: "Quit", click: () => app.quit() },
-    ]);
+        { label: `v${app.getVersion()}`, enabled: false },
+        { label: pt ? "Sair" : "Quit", click: () => app.quit() },
+      ]));
+    };
+    rebuildTrayMenu();
     tray.setToolTip("VOR");
     try {
       const shiftWheels = require("./shift-wheels.cjs");

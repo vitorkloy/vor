@@ -11,7 +11,6 @@ import {
   ChevronRight,
   FilePlus2,
   FolderOpen,
-  Globe2,
   GripVertical,
   Loader2,
   AlertTriangle,
@@ -105,6 +104,8 @@ const SECTIONS: Array<{ id: SectionId; label: string; caption: string; icon: Luc
 
 const PT: Record<string, string> = {
   Settings: 'Definições',
+  Language: 'Idioma',
+  'English, Português (Brasil), or the Windows language.': 'English, Português (Brasil) ou o idioma do Windows.',
   Search: 'Procurar',
   General: 'Geral',
   'Core VOR behavior.': 'Comportamento central do VOR.',
@@ -500,6 +501,22 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
     return {
       general: [
         {
+          key: 'language', group: 'Language', title: 'Language',
+          description: 'English, Português (Brasil), or the Windows language.',
+          kind: 'segmented',
+          current: config.uiLanguage ?? (config.language === 'pt' ? 'pt' : 'system'),
+          choices: [
+            { value: 'en', label: 'English' },
+            { value: 'pt', label: 'Português (Brasil)' },
+            { value: 'system', label: 'Idioma do sistema' },
+          ],
+          onChange: (value) => {
+            const next = value === 'pt' || value === 'en' ? value : 'system';
+            const language = next === 'pt' ? 'pt' : next === 'en' ? 'en' : ((navigator.language || 'en').toLowerCase().startsWith('pt') ? 'pt' : 'en');
+            setConfig((current) => ({ ...current, uiLanguage: next, language }));
+          },
+        },
+        {
           key: 'openAtLogin', group: 'Startup', title: 'Start with Windows',
           description: 'VOR is ready as soon as you sign in to Windows.',
           kind: 'bool', enabled: Boolean(config.openAtLogin),
@@ -737,11 +754,6 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
     if (!text) return '';
     return config.language === 'pt' ? (PT[text] ?? text) : text;
   };
-  const uiLanguage = config.uiLanguage ?? (config.language === 'pt' ? 'pt' : 'system');
-  const chooseLanguage = (next: 'system' | 'en' | 'pt') => {
-    const language = next === 'pt' ? 'pt' : next === 'en' ? 'en' : ((navigator.language || 'en').toLowerCase().startsWith('pt') ? 'pt' : 'en');
-    setConfig((current) => ({ ...current, uiLanguage: next, language }));
-  };
 
   const trimmedQuery = query.trim().toLowerCase();
   const activeMeta = SECTIONS.find((section) => section.id === sectionId)!;
@@ -801,24 +813,6 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
                 <X size={13} strokeWidth={2} />
               </button>
             )}
-          </div>
-
-          <div className="zs-nav" aria-label={tr('Idioma do sistema')}>
-            {([
-              ['en', 'English'],
-              ['pt', 'Português (Brasil)'],
-              ['system', 'Idioma do sistema'],
-            ] as const).map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                className={uiLanguage === value ? 'is-active' : ''}
-                onClick={() => chooseLanguage(value)}
-              >
-                <Globe2 size={15} strokeWidth={1.8} />
-                <span>{tr(label)}</span>
-              </button>
-            ))}
           </div>
 
           <nav className="zs-nav" aria-label="Settings sections">
