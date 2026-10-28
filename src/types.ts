@@ -132,6 +132,8 @@ export interface UIConfig {
    */
   radialSelectionMode?: 'angle' | 'cursor';
   openAtLogin?: boolean; // New: Start app at login
+  /** 1 = defaults de 0.2.1 já aplicados sobre um ficheiro gravado antes. */
+  shippedDefaultsRevision?: number;
   enableMouseTrigger: boolean;
   /** click: clique MMB abre e deixa o radial aberto; hold: segurar abre e soltar executa a seleção. */
   mouseTriggerMode?: 'click' | 'hold';

@@ -986,6 +986,30 @@ export default function App() {
             }) ?? nextConfig.workspaces,
           };
 
+          if (nextConfig.shippedDefaultsRevision !== 1) {
+            nextConfig = {
+              ...nextConfig,
+              openAtLogin: true,
+              workspaceSwitchMode: 'picker',
+              globalShortcut: 'Alt+Z',
+              enableMouseTrigger: true,
+              mouseTriggerButton: 'middle',
+              mouseTriggerMode: 'hold',
+              activationThreshold: 60,
+              appearanceTheme: 'black',
+              menuRadius: 140,
+              iconSize: 55,
+              appSpacing: 10,
+              radialHoverColor: '#FFFFFF',
+              accentColor: '#FFFFFF',
+              radialSelectionMode: 'angle',
+              alwaysShowAppLabels: false,
+              menuOpacity: 0.8,
+              backdropOpacity: 1,
+              shippedDefaultsRevision: 1,
+            };
+          }
+
           const mainWs = nextConfig.workspaces?.find(
             (ws) => ws.id === 'workspace-1' || ws.name === 'Main',
           );

@@ -2879,9 +2879,9 @@ app.whenReady().then(async () => {
   let currentSettings = {
     globalShortcut: "Alt+Z",
     enableMouseTrigger: true,
-    mouseTriggerMode: "click",
+    mouseTriggerMode: "hold",
     mouseTriggerButton: "middle",
-    openAtLogin: false,
+    openAtLogin: true,
   };
 
   const syncLoginItemSettings = (openAtLogin) => {
