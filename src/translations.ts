@@ -63,7 +63,7 @@ export const translations: Record<Language, Record<string, string>> = {
 
     "settings.interface_title": "Interface e Controle",
     "settings.interface_desc": "Atalhos, mouse, botão central da roda e preferências gerais.",
-    "files.title": "Ficheiros",
+    "files.title": "Arquivos",
     "files.desc": "Rodas ao arrastar um arquivo. A janela da roda recebe o largar, para o Explorer não mover o original.",
     "files.keys": "Teclas",
     "files.convert": "Converter",
