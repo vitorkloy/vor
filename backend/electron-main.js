@@ -1277,7 +1277,10 @@ function setupMainWindow(window) {
 let radialOpenPaintSequence = 0;
 
 /* zenith-verify:radial-handshake-main — prepare → radial-prep-paint-done → open-menu → radial-open-paint-done → show; ver scripts/verify-radial-windowing.mjs */
-function showMenuAtCursor(source = "shortcut", fileWheel = null) {
+/** Verdadeiro enquanto o arrasto de arquivo mantém a roda de arquivos. Atalho e botão do meio não podem abrir a roda de apps nesse intervalo. */
+let fileGestureActive = false;
+
+function presentRadialWindow(source = "shortcut", fileWheel = null) {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   const radialOpenStartedAt = Date.now();
 
@@ -1614,6 +1617,17 @@ function showMenuAtCursor(source = "shortcut", fileWheel = null) {
   });
 
   prepPromise.then(() => sendOpenMenuAndReveal(true));
+}
+
+/** Roda de apps (atalho e botão do meio). O arrasto de arquivo não entra aqui. */
+function showMenuAtCursor(source = "shortcut") {
+  if (fileGestureActive) return;
+  presentRadialWindow(source, null);
+}
+
+/** Roda de arquivo: mesmo HWND, payload de fatias no open-menu, sem o atalho da roda de apps. */
+function showFileWheelAtCursor(fileWheel) {
+  presentRadialWindow("file", fileWheel);
 }
 
 /**
@@ -3856,7 +3870,10 @@ app.whenReady().then(async () => {
         mainWindow.setAlwaysOnTop(true, "screen-saver", 1);
         if (!mainWindow.isVisible()) mainWindow.showInactive();
         mainWindow.webContents.send("file-wheel", { ...built, x, y });
-        if (!filePath) showMenuAtCursor("file", built);
+        if (!filePath) {
+          fileGestureActive = true;
+          showFileWheelAtCursor(built);
+        }
       };
       ipcMain.handle("run-file-slice", (_event, id, filePath) => {
         try {
@@ -3901,6 +3918,7 @@ app.whenReady().then(async () => {
           return;
         }
         fileDragOpen = false;
+        fileGestureActive = false;
         mainWindow.webContents.send("mmb-release");
       });
       uIOhook.start();

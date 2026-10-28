@@ -207,6 +207,8 @@ interface RadialMenuProps {
   updateReady?: boolean;
   /** Formato do ficheiro arrastado (JPG, PDF) por baixo do logo no hub. */
   hubCaption?: string | null;
+  /** Arrasto de arquivo: as fatias recebidas ficam na roda. O picker de workspaces não as substitui. */
+  fileMode?: boolean;
 }
 
 interface RadialMenuItemProps {
@@ -557,6 +559,7 @@ const RadialMenuInner: React.FC<RadialMenuProps> = ({
   onWorkspaceSwitch,
   currentWorkspace,
   animationReady = true,
+  fileMode = false,
   updateReady = false,
   hubCaption = null,
 }) => {
@@ -654,24 +657,38 @@ const RadialMenuInner: React.FC<RadialMenuProps> = ({
   // first as a flash. The wheel it flashed had a different item count, hence a
   // different radius and icon size, which made the swap impossible to miss.
   useLayoutEffect(() => {
-    if (isOpen) {
-      openingTimeRef.current = Date.now();
-      setHasMoved(false);
-      setIsCenterActive(false);
-      setFolderStack([]);
-      setCurrentLevelApps(getRootRadialApps(configRef.current, apps));
-      setActiveIndex(null);
-      setBloom(false);
+    if (!isOpen || fileMode) return;
+    openingTimeRef.current = Date.now();
+    setHasMoved(false);
+    setIsCenterActive(false);
+    setFolderStack([]);
+    setCurrentLevelApps(getRootRadialApps(configRef.current, apps));
+    setActiveIndex(null);
+    setBloom(false);
 
-      // CRITICAL: Focus window and body to ensure keyboard events are captured
-      // This is especially important when menu is opened via MMB or after dashboard interaction
-      window.focus();
-      document.body.focus();
-      if (menuRef.current) {
-        menuRef.current.focus();
-      }
+    window.focus();
+    document.body.focus();
+    if (menuRef.current) {
+      menuRef.current.focus();
     }
-  }, [isOpen]);
+  }, [isOpen, fileMode]);
+
+  useLayoutEffect(() => {
+    if (!isOpen || !fileMode) return;
+    openingTimeRef.current = Date.now();
+    setHasMoved(false);
+    setIsCenterActive(false);
+    setFolderStack([]);
+    setCurrentLevelApps(apps);
+    setActiveIndex(null);
+    setBloom(false);
+
+    window.focus();
+    document.body.focus();
+    if (menuRef.current) {
+      menuRef.current.focus();
+    }
+  }, [isOpen, fileMode, apps]);
 
   // Stable Interaction Logic (Performance Optimization)
   // We use refs to access current state inside stable event listeners

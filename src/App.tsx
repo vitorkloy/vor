@@ -2911,6 +2911,7 @@ export default function App() {
               appSpacing: config.fileWheelSpacing ?? 10,
             } : radialMenuConfig}
             hubCaption={fileWheel?.format ?? null}
+            fileMode={Boolean(fileWheel)}
             triggerSource={triggerSource}
             updateReady={updateReady}
             onWorkspaceSwitch={handleWorkspaceSwitch}
