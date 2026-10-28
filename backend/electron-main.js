@@ -3800,7 +3800,36 @@ app.whenReady().then(async () => {
       { label: "Quit", click: () => app.quit() },
     ]);
     tray.setToolTip("VOR");
-    try { require("./file-wheels.cjs").start(); } catch (e) { diagLog(`[FileWheels] ${e.message}`); }
+    try {
+      const shiftWheels = require("./shift-wheels.cjs");
+      let fileDragOpen = false;
+      ipcMain.handle("run-file-slice", (_event, id, filePath) => {
+        try {
+          const out = shiftWheels.run(id, filePath);
+          if (id === "act:copyPath") {
+            const { clipboard } = require("electron");
+            clipboard.writeText(String(filePath));
+          }
+          return { ok: true, out };
+        } catch (err) {
+          return { ok: false, error: err && err.message ? err.message : String(err) };
+        }
+      });
+      require("./file-wheels.cjs").start({
+        onDrag(ev) {
+          if (!mainWindow || mainWindow.isDestroyed()) return;
+          fileDragOpen = true;
+          const built = shiftWheels.build(ev.path, ev.mode);
+          mainWindow.webContents.send("file-wheel", { ...built, x: ev.x, y: ev.y });
+          showMenuAtCursor("shortcut");
+        },
+        onUp() {
+          if (!fileDragOpen || !mainWindow || mainWindow.isDestroyed()) return;
+          fileDragOpen = false;
+          mainWindow.webContents.send("mmb-release");
+        },
+      });
+    } catch (e) { diagLog(`[FileWheels] ${e.message}`); }
     tray.setContextMenu(contextMenu);
 
     // Feedback de início

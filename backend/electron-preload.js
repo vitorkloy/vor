@@ -60,6 +60,12 @@ contextBridge.exposeInMainWorld("electron", {
     ipcRenderer.on("mmb-cursor", listener);
     return () => ipcRenderer.removeListener("mmb-cursor", listener);
   },
+  onFileWheel: (callback) => {
+    const listener = (_event, payload) => callback(payload);
+    ipcRenderer.on("file-wheel", listener);
+    return () => ipcRenderer.removeListener("file-wheel", listener);
+  },
+  runFileSlice: (id, filePath) => ipcRenderer.invoke("run-file-slice", id, filePath),
   onMmbRelease: (callback) => {
     const listener = (event) => callback();
     ipcRenderer.on("mmb-release", listener);

@@ -175,6 +175,14 @@ function sanitizeFullPersistenceForDisk(d: {
 export default function App() {
   /* zenith-verify:radial-handshake-renderer — overlays/handshake radial; ver scripts/verify-radial-windowing.mjs */
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [fileWheel, setFileWheel] = useState<{
+    mode: string;
+    format: string;
+    path: string;
+    items: { id: string; title: string; available: boolean; reason: string | null }[];
+  } | null>(null);
+  const fileWheelRef = useRef(fileWheel);
+  fileWheelRef.current = fileWheel;
   /** Atualização descarregada e à espera de reinício — assinalada com um selo no hub do radial. */
   const [updateReady, setUpdateReady] = useState(false);
 
@@ -2035,8 +2043,30 @@ export default function App() {
     return () => clearTimeout(t);
   }, [isMenuOpen]);
 
+  useEffect(() => {
+    if (!fileWheel) return;
+    const swallow = (event: DragEvent) => {
+      event.preventDefault();
+    };
+    window.addEventListener("dragover", swallow);
+    window.addEventListener("drop", swallow);
+    return () => {
+      window.removeEventListener("dragover", swallow);
+      window.removeEventListener("drop", swallow);
+    };
+  }, [fileWheel]);
+
   // IPC: menu / dashboard / settings — must run after openMenu exists; use openMenuRef so handler always calls latest openMenu.
   useEffect(() => {
+    const cleanupFileWheel = window.electron?.onFileWheel?.((payload) => {
+      setFileWheel({
+        mode: payload.mode,
+        format: payload.format,
+        path: payload.path,
+        items: payload.items,
+      });
+    });
+
     const cleanupMenu = window.electron?.onOpenMenu((data: {
       x: number;
       y: number;
@@ -2171,6 +2201,7 @@ export default function App() {
       });
 
     return () => {
+      cleanupFileWheel?.();
       cleanupMenu?.();
       cleanupPrepareRadial?.();
       cleanupRadialNativeRevealed?.();
@@ -2399,6 +2430,25 @@ export default function App() {
       return;
     }
 
+    const dragged = fileWheelRef.current;
+    if (dragged) {
+      setFileWheel(null);
+      if (selectedId && (selectedId.startsWith('conv:') || selectedId.startsWith('tool:') || selectedId.startsWith('act:'))) {
+        const slice = dragged.items.find((item) => item.id === selectedId);
+        if (!slice || slice.available === false) {
+          setExecutionError(slice?.reason || 'Indisponível');
+        } else {
+          void window.electron?.runFileSlice?.(selectedId, dragged.path).then((result) => {
+            if (result && result.ok === false && result.error) setExecutionError(result.error);
+          });
+        }
+      }
+      if (isDesktopMode && !panelSurfaceOpen) {
+        window.electron?.setWindowSize('small', windowCenterScreenPoint());
+      }
+      return;
+    }
+
     if (selectedId) {
       setIsDashboardOpen(false);
     }
@@ -2507,9 +2557,21 @@ export default function App() {
   const radialMenuConfig = React.useMemo(() => config, [config]);
 
   const radialApps = React.useMemo(() => {
+    if (fileWheel) {
+      return fileWheel.items.map((item) => ({
+        id: item.id,
+        type: 'app' as const,
+        label: item.available ? item.title : `${item.title} · ${item.reason || 'Indisponível'}`,
+        iconName: 'File',
+        command: item.id,
+        commandType: 'app' as const,
+        description: item.reason || item.title,
+        fileDisabled: item.available === false,
+      }));
+    }
     const w = config.workspaces[config.activeWorkspaceIndex];
     return w?.apps?.length ? w.apps : apps;
-  }, [config.workspaces, config.activeWorkspaceIndex, apps]);
+  }, [fileWheel, config.workspaces, config.activeWorkspaceIndex, apps]);
 
   const radialCurrentWorkspace = React.useMemo(
     () => config.workspaces[config.activeWorkspaceIndex],
@@ -2806,7 +2868,8 @@ export default function App() {
             viewportSize={radialClientSize}
             onClose={handleMenuClose}
             apps={radialApps}
-            config={radialMenuConfig}
+            config={fileWheel ? { ...radialMenuConfig, alwaysShowAppLabels: true } : radialMenuConfig}
+            hubCaption={fileWheel?.format ?? null}
             triggerSource={triggerSource}
             updateReady={updateReady}
             onWorkspaceSwitch={handleWorkspaceSwitch}

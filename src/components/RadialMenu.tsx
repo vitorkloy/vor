@@ -205,6 +205,8 @@ interface RadialMenuProps {
   animationReady?: boolean;
   /** Atualização descarregada e à espera de reinício — selo no hub. */
   updateReady?: boolean;
+  /** Formato do ficheiro arrastado (JPG, PDF) por baixo do logo no hub. */
+  hubCaption?: string | null;
 }
 
 interface RadialMenuItemProps {
@@ -379,7 +381,7 @@ const RadialMenuItem = React.memo(({
         ['--zn-tf' as string]: bloom
           ? `translate3d(${snapToDevicePixel(pos.x)}px, ${snapToDevicePixel(pos.y)}px, 0) scale(${presence.scale})`
           : 'translate3d(0px, 0px, 0) scale(0.2)',
-        ['--zn-op' as string]: bloom ? presence.opacity : 0,
+        ['--zn-op' as string]: bloom ? (app.fileDisabled ? 0.38 : presence.opacity) : 0,
         zIndex: isActive ? 200 : 100,
       }}
       onMouseDown={(e) => e.stopPropagation()}
@@ -556,6 +558,7 @@ const RadialMenuInner: React.FC<RadialMenuProps> = ({
   currentWorkspace,
   animationReady = true,
   updateReady = false,
+  hubCaption = null,
 }) => {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [isCenterActive, setIsCenterActive] = useState(false);
@@ -1705,12 +1708,20 @@ const RadialMenuInner: React.FC<RadialMenuProps> = ({
                 </div>
               ) : isRoot ? (
                 <div
-                  className={`flex items-center justify-center transition-opacity duration-150 ${isCenterActive ? 'opacity-100' : 'opacity-70'}`}
+                  className={`flex flex-col items-center justify-center gap-0.5 transition-opacity duration-150 ${isCenterActive ? 'opacity-100' : 'opacity-70'}`}
                 >
                   <RovylLogo
-                    size={Math.round(actualIconSize * 0.64)}
+                    size={Math.round(actualIconSize * (hubCaption ? 0.42 : 0.64))}
                     color={isCenterActive ? radialHoverForeground : '#F4F2ED'}
                   />
+                  {hubCaption ? (
+                    <span
+                      className="text-[11px] font-semibold tracking-wide leading-none"
+                      style={{ color: '#F4F2ED', fontFamily: 'var(--font-radial)' }}
+                    >
+                      {hubCaption}
+                    </span>
+                  ) : null}
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center gap-1">

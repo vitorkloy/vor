@@ -40,6 +40,8 @@ export interface AppItem {
   workingDirectory?: string;
   /** Estratégia de abertura: normal, reutilizar processo existente ou aquecer ficheiros no cache do Windows. */
   launchMode?: "normal" | "reuse" | "prewarm";
+  /** Fatia ShiftDrop sem ferramenta no Windows: continua visível, mas não corre. */
+  fileDisabled?: boolean;
 }
 
 export interface CenterButtonConfig {
@@ -183,6 +185,17 @@ export interface ElectronAPI {
   wasOpenedAtLogin?: () => Promise<boolean>;
   /** O main confirma se a app tem mesmo um perfil de IDE com MRU (não adivinhar por nome). */
   appSupportsRecents?: (appName: string, appCommand: string) => Promise<boolean>;
+  onFileWheel?: (
+    callback: (data: {
+      mode: string;
+      format: string;
+      path: string;
+      x: number;
+      y: number;
+      items: { id: string; title: string; available: boolean; reason: string | null }[];
+    }) => void,
+  ) => () => void;
+  runFileSlice?: (id: string, filePath: string) => Promise<{ ok: boolean; out?: string; error?: string }>;
   onOpenMenu: (
     callback: (data: {
       x: number;
