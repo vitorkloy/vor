@@ -2935,6 +2935,12 @@ app.whenReady().then(async () => {
     if (Array.isArray(ui.workspaces)) {
       currentSettings.workspaces = ui.workspaces;
     }
+    if (ui.fileWheelKeys && typeof ui.fileWheelKeys === "object") {
+      currentSettings.fileWheelKeys = ui.fileWheelKeys;
+    }
+    if (typeof ui.fileWheelScale === "number") {
+      currentSettings.fileWheelScale = ui.fileWheelScale;
+    }
   };
 
   const saveSettings = (newSettings) => {
@@ -3803,6 +3809,33 @@ app.whenReady().then(async () => {
     try {
       const shiftWheels = require("./shift-wheels.cjs");
       let fileDragOpen = false;
+      let fileDragOrigin = null;
+      let fileDragMode = null;
+      const fileWheelMode = (ev) => {
+        const keys = currentSettings.fileWheelKeys || {
+          convert: "shift",
+          tools: "ctrl",
+          actions: "alt",
+        };
+        const down = { shift: !!ev.shift, ctrl: !!ev.ctrl, alt: !!ev.alt };
+        if (down[keys.convert]) return "convert";
+        if (down[keys.tools]) return "tools";
+        if (down[keys.actions]) return "actions";
+        return null;
+      };
+      const revealFileWheel = (x, y, mode, filePath) => {
+        if (!mainWindow || mainWindow.isDestroyed()) return;
+        fileDragOpen = true;
+        fileDragMode = mode;
+        const built = filePath
+          ? shiftWheels.build(filePath, mode)
+          : { mode, format: "…", kind: "other", path: "", items: [] };
+        mainWindow.setIgnoreMouseEvents(false);
+        mainWindow.setAlwaysOnTop(true, "screen-saver", 1);
+        if (!mainWindow.isVisible()) mainWindow.showInactive();
+        mainWindow.webContents.send("file-wheel", { ...built, x, y });
+        if (!filePath) showMenuAtCursor("shortcut");
+      };
       ipcMain.handle("run-file-slice", (_event, id, filePath) => {
         try {
           const out = shiftWheels.run(id, filePath);
@@ -3815,18 +3848,39 @@ app.whenReady().then(async () => {
           return { ok: false, error: err && err.message ? err.message : String(err) };
         }
       });
+      ipcMain.handle("note-file-drag-path", (_event, filePath) => {
+        if (!fileDragOpen || !filePath || !fileDragMode) return { ok: false };
+        const point = screen.getCursorScreenPoint();
+        revealFileWheel(point.x, point.y, fileDragMode, filePath);
+        return { ok: true };
+      });
+      ipcMain.handle("shift-tool-status", () => shiftWheels.tools());
       require("./file-wheels.cjs").start({
-        onDrag(ev) {
-          if (!mainWindow || mainWindow.isDestroyed()) return;
-          fileDragOpen = true;
-          const built = shiftWheels.build(ev.path, ev.mode);
-          mainWindow.webContents.send("file-wheel", { ...built, x: ev.x, y: ev.y });
-          showMenuAtCursor("shortcut");
-        },
-        onUp() {
-          if (!fileDragOpen || !mainWindow || mainWindow.isDestroyed()) return;
-          fileDragOpen = false;
-          mainWindow.webContents.send("mmb-release");
+        onEvent(ev) {
+          if (ev.type === "down") {
+            fileDragOrigin = { x: ev.x, y: ev.y };
+            fileDragOpen = false;
+            fileDragMode = null;
+            return;
+          }
+          if (ev.type === "move" && fileDragOrigin && !fileDragOpen) {
+            const dx = ev.x - fileDragOrigin.x;
+            const dy = ev.y - fileDragOrigin.y;
+            if (dx * dx + dy * dy < 144) return;
+            const mode = fileWheelMode(ev);
+            if (!mode) return;
+            revealFileWheel(ev.x, ev.y, mode, "");
+            return;
+          }
+          if (ev.type === "up") {
+            fileDragOrigin = null;
+            if (!fileDragOpen || !mainWindow || mainWindow.isDestroyed()) {
+              fileDragOpen = false;
+              return;
+            }
+            fileDragOpen = false;
+            mainWindow.webContents.send("mmb-release");
+          }
         },
       });
     } catch (e) { diagLog(`[FileWheels] ${e.message}`); }
@@ -4057,6 +4111,12 @@ app.whenReady().then(async () => {
     }
     if (typeof settings.openAtLogin === "boolean") patch.openAtLogin = settings.openAtLogin;
     if (Array.isArray(settings.workspaces)) patch.workspaces = settings.workspaces;
+    if (settings.fileWheelKeys && typeof settings.fileWheelKeys === "object") {
+      currentSettings.fileWheelKeys = settings.fileWheelKeys;
+    }
+    if (typeof settings.fileWheelScale === "number") {
+      currentSettings.fileWheelScale = settings.fileWheelScale;
+    }
     if (Object.keys(patch).length === 0) return;
 
     saveSettings(patch);

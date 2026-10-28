@@ -10,7 +10,7 @@ const SLIDES = ["ppt", "pptx", "odp", "key"];
 const SHEETS = ["xlsx", "xls", "ods", "csv", "tsv"];
 const SUBS = ["srt", "vtt"];
 const ARCHIVES = ["zip", "tar", "gz", "rar", "7z"];
-const SOON = "Em breve no ShiftDrop";
+const SOON = "soon";
 const NATIVE = ["png", "jpg", "jpeg", "bmp", "gif", "tif", "tiff"];
 
 function which(cmd) {
@@ -85,32 +85,32 @@ function no(msg) { return { available: false, reason: msg }; }
 function need(tool, msg) { return tool ? ok() : no(msg); }
 
 function convGate(kind, from, to, t) {
-  if (to === "pages") return no("Pages é formato da Apple (não existe no Windows)");
+  if (to === "pages") return no("pages");
   if (kind === "image") {
     const nativeIn = NATIVE.includes(from);
     const nativeOut = ["png", "jpg", "webp", "tiff", "bmp", "pdf"].includes(to);
     if ((nativeIn || t.magick) && (nativeOut || t.magick) && !(to === "pdf" && !t.magick) && !(["webp", "tiff"].includes(to) && !t.magick && !NATIVE.includes(to))) {
-      if (to === "pdf" && !t.magick) return no("Requer ImageMagick");
-      if (["webp", "heic", "avif"].includes(to) && !t.magick) return no("Requer ImageMagick");
-      if (["webp", "heic", "avif"].includes(from) && !t.magick) return no("Requer ImageMagick");
+      if (to === "pdf" && !t.magick) return no("imagemagick");
+      if (["webp", "heic", "avif"].includes(to) && !t.magick) return no("imagemagick");
+      if (["webp", "heic", "avif"].includes(from) && !t.magick) return no("imagemagick");
       return ok();
     }
-    return no("Requer ImageMagick");
+    return no("imagemagick");
   }
-  if (kind === "audio" || kind === "video" || kind === "gif") return need(t.ffmpeg, "Requer ffmpeg");
+  if (kind === "audio" || kind === "video" || kind === "gif") return need(t.ffmpeg, "ffmpeg");
   if (kind === "pdf") {
-    if (to === "jpg" || to === "png") return need(t.gs, "Requer Ghostscript");
-    if (to === "docx" || to === "txt") return need(t.soffice, "Requer LibreOffice");
+    if (to === "jpg" || to === "png") return need(t.gs, "ghostscript");
+    if (to === "docx" || to === "txt") return need(t.soffice, "libreoffice");
     return no(SOON);
   }
   if (kind === "doc" || kind === "txt" || kind === "slides" || kind === "sheet") {
-    if (to === "md" || from === "md") return need(t.pandoc, "Requer pandoc");
-    return need(t.soffice, "Requer LibreOffice");
+    if (to === "md" || from === "md") return need(t.pandoc, "pandoc");
+    return need(t.soffice, "libreoffice");
   }
-  if (kind === "epub") return to === "pdf" ? no(SOON) : need(t.pandoc, "Requer pandoc");
+  if (kind === "epub") return to === "pdf" ? no(SOON) : need(t.pandoc, "pandoc");
   if (kind === "subtitle") return ok();
-  if (kind === "archive") return need(t.tar, "Requer tar.exe");
-  return no("Não suportado");
+  if (kind === "archive") return need(t.tar, "tar");
+  return no("unsupported");
 }
 
 function toolTitle(id) {
@@ -141,19 +141,19 @@ function toolIds(kind, fmt) {
 function toolGate(id, kind, t) {
   if (id === "compress") {
     if (kind === "image") return ok();
-    if (kind === "pdf") return need(t.gs, "Requer Ghostscript");
-    return need(t.ffmpeg, "Requer ffmpeg");
+    if (kind === "pdf") return need(t.gs, "ghostscript");
+    return need(t.ffmpeg, "ffmpeg");
   }
   if (id === "removeMetadata") {
     if (kind === "image") return ok();
     if (kind === "pdf") return no(SOON);
-    return need(t.ffmpeg, "Requer ffmpeg");
+    return need(t.ffmpeg, "ffmpeg");
   }
   if (["muteVideo", "changeVideoSpeed", "videoSnapshots", "splitVideo", "normalizeAudio", "audioToVideo", "audioChannels", "joinVideos"].includes(id)) {
-    return need(t.ffmpeg, "Requer ffmpeg");
+    return need(t.ffmpeg, "ffmpeg");
   }
   if (id === "createPDF" || ["copy", "move", "copyPath", "openTerminal"].includes(id)) return ok();
-  if (id === "extractArchive") return need(t.tar, "Requer tar.exe");
+  if (id === "extractArchive") return need(t.tar, "tar");
   return no(SOON);
 }
 
@@ -225,7 +225,7 @@ function run(id, filePath) {
       execFileSync(t.pandoc, [filePath, "-o", dest], { stdio: "ignore" });
       return dest;
     }
-    throw new Error("Requer ferramenta externa");
+    throw new Error("soon");
   }
   if (id === "act:copy" || id === "tool:copy") {
     const dest = uniquePath(dir, stem, path.extname(filePath).slice(1) || "bin");
@@ -263,4 +263,4 @@ function run(id, filePath) {
   throw new Error(SOON);
 }
 
-module.exports = { build, run };
+module.exports = { build, run, tools };

@@ -66,6 +66,15 @@ contextBridge.exposeInMainWorld("electron", {
     return () => ipcRenderer.removeListener("file-wheel", listener);
   },
   runFileSlice: (id, filePath) => ipcRenderer.invoke("run-file-slice", id, filePath),
+  noteFileDragPath: (filePath) => ipcRenderer.invoke("note-file-drag-path", filePath),
+  shiftToolStatus: () => ipcRenderer.invoke("shift-tool-status"),
+  filePath: (file) => {
+    try {
+      return require("electron").webUtils.getPathForFile(file);
+    } catch {
+      return file && file.path ? file.path : "";
+    }
+  },
   onMmbRelease: (callback) => {
     const listener = (event) => callback();
     ipcRenderer.on("mmb-release", listener);

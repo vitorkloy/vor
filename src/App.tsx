@@ -2045,14 +2045,22 @@ export default function App() {
 
   useEffect(() => {
     if (!fileWheel) return;
-    const swallow = (event: DragEvent) => {
+    const take = (event: DragEvent) => {
       event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+      if (fileWheel.path) return;
+      const file = event.dataTransfer?.files?.[0];
+      const fromBridge = file ? window.electron?.filePath?.(file) : "";
+      const picked = fromBridge || (file as File & { path?: string } | undefined)?.path || "";
+      if (picked && picked.includes("\\") || picked && picked.startsWith("/")) {
+        void window.electron?.noteFileDragPath?.(picked);
+      }
     };
-    window.addEventListener("dragover", swallow);
-    window.addEventListener("drop", swallow);
+    window.addEventListener("dragover", take);
+    window.addEventListener("drop", take);
     return () => {
-      window.removeEventListener("dragover", swallow);
-      window.removeEventListener("drop", swallow);
+      window.removeEventListener("dragover", take);
+      window.removeEventListener("drop", take);
     };
   }, [fileWheel]);
 
@@ -2436,7 +2444,7 @@ export default function App() {
       if (selectedId && (selectedId.startsWith('conv:') || selectedId.startsWith('tool:') || selectedId.startsWith('act:'))) {
         const slice = dragged.items.find((item) => item.id === selectedId);
         if (!slice || slice.available === false) {
-          setExecutionError(slice?.reason || 'Indisponível');
+          setExecutionError(selectedApp?.description || slice?.reason || 'Indisponível');
         } else {
           void window.electron?.runFileSlice?.(selectedId, dragged.path).then((result) => {
             if (result && result.ok === false && result.error) setExecutionError(result.error);
@@ -2558,20 +2566,32 @@ export default function App() {
 
   const radialApps = React.useMemo(() => {
     if (fileWheel) {
-      return fileWheel.items.map((item) => ({
-        id: item.id,
-        type: 'app' as const,
-        label: item.available ? item.title : `${item.title} · ${item.reason || 'Indisponível'}`,
-        iconName: 'File',
-        command: item.id,
-        commandType: 'app' as const,
-        description: item.reason || item.title,
-        fileDisabled: item.available === false,
-      }));
+      const pt = (config.language || 'en') === 'pt';
+      const names: Record<string, string> = pt
+        ? { compress: 'Comprimir', removeMetadata: 'Metadados', editImage: 'Editar', annotateImage: 'Anotar', frameImage: 'Fundo', cropImage: 'Cortar', cropVideo: 'Cortar', redactImage: 'Redigir', redactVideo: 'Redigir', normalizeAudio: 'Normalizar', muteVideo: 'Silenciar', trimVideo: 'Cortar tempo', trimAudio: 'Cortar tempo', splitPDF: 'Dividir', splitVideo: 'Dividir', organizePDF: 'Organizar', extractArchive: 'Extrair', createPDF: 'Criar PDF', mergePDF: 'Juntar PDF', changeVideoSpeed: 'Velocidade', joinVideos: 'Juntar', videoSnapshots: 'Instantâneo', audioToVideo: 'Visualizar', audioChannels: 'Canais', createCollage: 'Colagem', redactAudio: 'Censurar', airDrop: 'Partilhar', float: 'Flutuar', copy: 'Copiar', move: 'Mover', copyPath: 'Copiar caminho', openTerminal: 'Terminal' }
+        : { compress: 'Compress', removeMetadata: 'Metadata', editImage: 'Edit', annotateImage: 'Annotate', frameImage: 'Add background', cropImage: 'Crop', cropVideo: 'Crop', redactImage: 'Redact', redactVideo: 'Redact', normalizeAudio: 'Normalize', muteVideo: 'Mute', trimVideo: 'Trim', trimAudio: 'Trim', splitPDF: 'Split', splitVideo: 'Split', organizePDF: 'Organize', extractArchive: 'Extract', createPDF: 'Create PDF', mergePDF: 'Merge PDF', changeVideoSpeed: 'Speed', joinVideos: 'Join', videoSnapshots: 'Snapshot', audioToVideo: 'Visualize', audioChannels: 'Channels', createCollage: 'Collage', redactAudio: 'Bleep', airDrop: 'Share', float: 'Float', copy: 'Copy', move: 'Move', copyPath: 'Copy path', openTerminal: 'Terminal' };
+      const reasons: Record<string, string> = pt
+        ? { imagemagick: 'Requer ImageMagick', ffmpeg: 'Requer FFmpeg', libreoffice: 'Requer LibreOffice', ghostscript: 'Requer Ghostscript', pandoc: 'Requer Pandoc', tar: 'Requer tar.exe', soon: 'Em breve no ShiftDrop', pages: 'Pages é formato da Apple', unsupported: 'Não suportado' }
+        : { imagemagick: 'Requires ImageMagick', ffmpeg: 'Requires FFmpeg', libreoffice: 'Requires LibreOffice', ghostscript: 'Requires Ghostscript', pandoc: 'Requires Pandoc', tar: 'Requires tar.exe', soon: 'Coming soon in ShiftDrop', pages: 'Pages is an Apple format', unsupported: 'Not supported' };
+      return fileWheel.items.map((item) => {
+        const key = item.id.split(':')[1] || item.title;
+        const title = names[key] || item.title;
+        const reason = item.reason ? (reasons[item.reason] || item.reason) : '';
+        return {
+          id: item.id,
+          type: 'app' as const,
+          label: item.available ? title : `${title} · ${reason || (pt ? 'Indisponível' : 'Unavailable')}`,
+          iconName: 'File',
+          command: item.id,
+          commandType: 'app' as const,
+          description: reason || title,
+          fileDisabled: item.available === false,
+        };
+      });
     }
     const w = config.workspaces[config.activeWorkspaceIndex];
     return w?.apps?.length ? w.apps : apps;
-  }, [fileWheel, config.workspaces, config.activeWorkspaceIndex, apps]);
+  }, [fileWheel, config.language, config.workspaces, config.activeWorkspaceIndex, apps]);
 
   const radialCurrentWorkspace = React.useMemo(
     () => config.workspaces[config.activeWorkspaceIndex],
@@ -2868,7 +2888,7 @@ export default function App() {
             viewportSize={radialClientSize}
             onClose={handleMenuClose}
             apps={radialApps}
-            config={fileWheel ? { ...radialMenuConfig, alwaysShowAppLabels: true } : radialMenuConfig}
+            config={fileWheel ? { ...radialMenuConfig, alwaysShowAppLabels: true, menuRadius: Math.round(radialMenuConfig.menuRadius * (config.fileWheelScale || 1)) } : radialMenuConfig}
             hubCaption={fileWheel?.format ?? null}
             triggerSource={triggerSource}
             updateReady={updateReady}

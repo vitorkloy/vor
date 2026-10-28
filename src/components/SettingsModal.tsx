@@ -15,7 +15,7 @@ import {
     ExternalLink, Moon, Sun, ArrowRight, ArrowLeft, TimerReset,
     FolderPlus, FileText, Edit3, Calendar, Battery, CloudRain,
     Layout, Compass, Laptop, Smartphone, Bell, GripVertical, ChevronLeft, LogOut,
-    Layers, Shield, PackageX
+    Layers, Shield, PackageX, Info, FolderInput
 } from 'lucide-react';
 import { RovylLogo } from './RovylLogo';
 import { IconPicker } from './IconPicker';
@@ -2334,7 +2334,95 @@ const ShortcutRecorderField: React.FC<{
     );
 };
 
-type SettingsTab = 'apps' | 'workspaces' | 'interface' | 'visuals' | 'widgets' | 'gamemode' | 'user' | 'dashboard';
+type SettingsTab = 'apps' | 'workspaces' | 'interface' | 'visuals' | 'widgets' | 'gamemode' | 'user' | 'dashboard' | 'files' | 'about';
+
+const FileDropTab = ({ config, setConfig }: { config: UIConfig; setConfig: (c: UIConfig) => void }) => {
+    const t = (key: string) => getTranslation(config, key);
+    const keys = config.fileWheelKeys || { convert: 'shift' as const, tools: 'ctrl' as const, actions: 'alt' as const };
+    const [tools, setTools] = useState<Record<string, string | null> | null>(null);
+    useEffect(() => {
+        void window.electron?.shiftToolStatus?.().then(setTools);
+    }, []);
+    const setKey = (slot: 'convert' | 'tools' | 'actions', value: 'shift' | 'ctrl' | 'alt') => {
+        const next = { ...keys, [slot]: value };
+        setConfig({ ...config, fileWheelKeys: next });
+        window.electron?.setSettings?.({ fileWheelKeys: next, globalShortcut: config.globalShortcut });
+    };
+    const names = [
+        ['magick', 'ImageMagick'],
+        ['ffmpeg', 'FFmpeg'],
+        ['soffice', 'LibreOffice'],
+        ['pandoc', 'Pandoc'],
+    ] as const;
+    return (
+        <motion.div className="h-full overflow-y-auto custom-scrollbar pb-24 pt-20 px-8" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <h2 className="text-white text-lg font-semibold">{t('files.title')}</h2>
+            <p className="text-white/45 text-[13px] mt-1 mb-6 max-w-xl">{t('files.desc')}</p>
+            <div className="text-[11px] uppercase tracking-widest text-white/35 mb-2">{t('files.keys')}</div>
+            <div className="grid gap-3 max-w-md">
+                {(['convert', 'tools', 'actions'] as const).map((slot) => (
+                    <label key={slot} className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                        <span className="text-[13px] text-white/80">{t(`files.${slot}`)}</span>
+                        <select
+                            value={keys[slot]}
+                            onChange={(e) => setKey(slot, e.target.value as 'shift' | 'ctrl' | 'alt')}
+                            className="bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-[12px] text-white"
+                        >
+                            <option value="shift">Shift</option>
+                            <option value="ctrl">Ctrl</option>
+                            <option value="alt">Alt</option>
+                        </select>
+                    </label>
+                ))}
+            </div>
+            <label className="block mt-6 max-w-md">
+                <div className="flex justify-between text-[13px] text-white/80 mb-2">
+                    <span>{t('files.scale')}</span>
+                    <span>{(config.fileWheelScale || 1).toFixed(2)}</span>
+                </div>
+                <input
+                    type="range"
+                    min={0.7}
+                    max={1.4}
+                    step={0.05}
+                    value={config.fileWheelScale || 1}
+                    onChange={(e) => {
+                        const fileWheelScale = Number(e.target.value);
+                        setConfig({ ...config, fileWheelScale });
+                        window.electron?.setSettings?.({ fileWheelScale, globalShortcut: config.globalShortcut });
+                    }}
+                    className="w-full"
+                />
+            </label>
+            <div className="text-[11px] uppercase tracking-widest text-white/35 mt-8 mb-2">{t('files.tools_status')}</div>
+            <div className="grid gap-2 max-w-xl">
+                {names.map(([id, label]) => {
+                    const found = tools ? tools[id] : null;
+                    return (
+                        <div key={id} className="flex items-center justify-between rounded-xl border border-white/10 px-4 py-3 text-[13px]">
+                            <span className="text-white/80">{label}</span>
+                            <span className={found ? 'text-emerald-300/80' : 'text-white/35'}>
+                                {tools == null ? '…' : found ? t('files.found') : t('files.missing')}
+                            </span>
+                        </div>
+                    );
+                })}
+            </div>
+        </motion.div>
+    );
+};
+
+const AboutTab = ({ config }: { config: UIConfig }) => {
+    const t = (key: string) => getTranslation(config, key);
+    return (
+        <motion.div className="h-full overflow-y-auto custom-scrollbar pb-24 pt-20 px-8 flex flex-col items-start gap-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <RovylLogo size={72} />
+            <h2 className="text-white text-2xl font-semibold">VOR</h2>
+            <p className="text-white/70 text-[15px]">{t('about.body')}</p>
+            <p className="text-white/40 text-[13px]">0.2.4</p>
+        </motion.div>
+    );
+};
 
 const InterfaceTab = React.memo((props: {
     config: UIConfig,
@@ -4699,6 +4787,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             <NavButton tab="widgets" label={getTranslation(config, 'sidebar.hud')} icon={Clock} isSidebarExpanded={isCompact ? false : isSidebarExpanded} activeTab={activeTab} setActiveTab={setActiveTab} isCompact={isCompact} />
                             <NavButton tab="gamemode" label={getTranslation(config, 'sidebar.gamemode')} icon={Shield} isSidebarExpanded={isCompact ? false : isSidebarExpanded} activeTab={activeTab} setActiveTab={setActiveTab} isCompact={isCompact} />
                             <NavButton tab="user" label={getTranslation(config, 'sidebar.profile')} icon={User} isSidebarExpanded={isCompact ? false : isSidebarExpanded} activeTab={activeTab} setActiveTab={setActiveTab} isCompact={isCompact} />
+                            <NavButton tab="files" label={getTranslation(config, 'files.title')} icon={FolderInput} isSidebarExpanded={isCompact ? false : isSidebarExpanded} activeTab={activeTab} setActiveTab={setActiveTab} isCompact={isCompact} />
+                            <NavButton tab="about" label={getTranslation(config, 'about.title')} icon={Info} isSidebarExpanded={isCompact ? false : isSidebarExpanded} activeTab={activeTab} setActiveTab={setActiveTab} isCompact={isCompact} />
                         </div>
                         </div>
 
@@ -4852,6 +4942,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                     {/* Content */}
                     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#0D0D0D]">
+                        <div className="absolute top-4 right-6 z-20 flex gap-1 rounded-full border border-white/10 bg-black/50 p-1">
+                            {(['en', 'pt'] as const).map((code) => (
+                                <button
+                                    key={code}
+                                    type="button"
+                                    onClick={() => setConfig({ ...config, language: code })}
+                                    className={`px-3 py-1 rounded-full text-[11px] font-semibold tracking-wide ${config.language === code ? 'bg-white text-black' : 'text-white/60'}`}
+                                >
+                                    {getTranslation(config, code === 'en' ? 'lang.en' : 'lang.pt')}
+                                </button>
+                            ))}
+                        </div>
                         <AnimatePresence mode="wait">
                             {searchTerm.trim() ? (
                                 <SearchResultsView
@@ -4901,6 +5003,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                     )}
                                     {activeTab === 'widgets' && <HUDTab key="hud" config={config} setConfig={setConfig} />}
                                     {activeTab === 'gamemode' && <GameModeTab key="gamemode" config={config} setConfig={setConfig} />}
+                                    {activeTab === 'files' && <FileDropTab key="files" config={config} setConfig={setConfig} />}
+                                    {activeTab === 'about' && <AboutTab key="about" config={config} />}
                                     {activeTab === 'user' && (
                                         <UserTab
                                             user={user}
