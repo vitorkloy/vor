@@ -510,7 +510,7 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
           kind: 'segmented', current: config.fileWheelKeys?.convert ?? 'shift',
           choices: [{ value: 'shift', label: 'Shift' }, { value: 'ctrl', label: 'Ctrl' }, { value: 'alt', label: 'Alt' }],
           onChange: (value) => {
-            const fileWheelKeys = { convert: 'shift' as const, tools: 'ctrl' as const, actions: 'alt' as const, ...config.fileWheelKeys, convert: value as 'shift' | 'ctrl' | 'alt' };
+            const fileWheelKeys = { convert: value as 'shift' | 'ctrl' | 'alt', tools: config.fileWheelKeys?.tools ?? 'ctrl', actions: config.fileWheelKeys?.actions ?? 'alt' };
             update('fileWheelKeys', fileWheelKeys);
             window.electron?.setSettings?.({ fileWheelKeys, globalShortcut: config.globalShortcut });
           },
@@ -521,7 +521,7 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
           kind: 'segmented', current: config.fileWheelKeys?.tools ?? 'ctrl',
           choices: [{ value: 'shift', label: 'Shift' }, { value: 'ctrl', label: 'Ctrl' }, { value: 'alt', label: 'Alt' }],
           onChange: (value) => {
-            const fileWheelKeys = { convert: 'shift' as const, tools: 'ctrl' as const, actions: 'alt' as const, ...config.fileWheelKeys, tools: value as 'shift' | 'ctrl' | 'alt' };
+            const fileWheelKeys = { convert: config.fileWheelKeys?.convert ?? 'shift', tools: value as 'shift' | 'ctrl' | 'alt', actions: config.fileWheelKeys?.actions ?? 'alt' };
             update('fileWheelKeys', fileWheelKeys);
             window.electron?.setSettings?.({ fileWheelKeys, globalShortcut: config.globalShortcut });
           },
@@ -532,7 +532,7 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
           kind: 'segmented', current: config.fileWheelKeys?.actions ?? 'alt',
           choices: [{ value: 'shift', label: 'Shift' }, { value: 'ctrl', label: 'Ctrl' }, { value: 'alt', label: 'Alt' }],
           onChange: (value) => {
-            const fileWheelKeys = { convert: 'shift' as const, tools: 'ctrl' as const, actions: 'alt' as const, ...config.fileWheelKeys, actions: value as 'shift' | 'ctrl' | 'alt' };
+            const fileWheelKeys = { convert: config.fileWheelKeys?.convert ?? 'shift', tools: config.fileWheelKeys?.tools ?? 'ctrl', actions: value as 'shift' | 'ctrl' | 'alt' };
             update('fileWheelKeys', fileWheelKeys);
             window.electron?.setSettings?.({ fileWheelKeys, globalShortcut: config.globalShortcut });
           },
