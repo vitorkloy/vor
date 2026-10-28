@@ -1,6 +1,6 @@
 [package]
 name = "vor"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 description = "VOR — Visual Operations Router (Tauri v2). Marco 1: uma roda de lançamento."
 authors = ["Vitor de Oliveira"]

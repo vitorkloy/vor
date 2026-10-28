@@ -117,7 +117,7 @@ function show(tab) {
     rows.append(toggle("Relógio", "Pill no topo ao centro enquanto a roda está aberta.", "showClock"));
   } else {
     h1.textContent = "Perfil";
-    p.textContent = "VOR 0.1.1 — com.vitorkloy.vor";
+    p.textContent = "VOR 0.1.2 — com.vitorkloy.vor";
     const theme = document.createElement("div");
     theme.className = "zs-row";
     const copy = document.createElement("div");
