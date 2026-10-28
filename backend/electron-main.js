@@ -1277,7 +1277,7 @@ function setupMainWindow(window) {
 let radialOpenPaintSequence = 0;
 
 /* zenith-verify:radial-handshake-main — prepare → radial-prep-paint-done → open-menu → radial-open-paint-done → show; ver scripts/verify-radial-windowing.mjs */
-function showMenuAtCursor(source = "shortcut") {
+function showMenuAtCursor(source = "shortcut", fileWheel = null) {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   const radialOpenStartedAt = Date.now();
 
@@ -1522,6 +1522,8 @@ function showMenuAtCursor(source = "shortcut") {
       x: radialCenter.x,
       y: radialCenter.y,
       source: source,
+      /** Roda de ficheiro: o renderer tem de montar estas fatias no mesmo evento, senão pinta a roda de apps. */
+      fileWheel: fileWheel,
       /** Main já chamou `updateWindowSize('fullscreen')` (exceto minimizado: bounds em fila). */
       preSizedByMain: !wasMinimized,
       /** O painel continua no ecrã por baixo do radial — o renderer não o pode fechar. */
@@ -3854,7 +3856,7 @@ app.whenReady().then(async () => {
         mainWindow.setAlwaysOnTop(true, "screen-saver", 1);
         if (!mainWindow.isVisible()) mainWindow.showInactive();
         mainWindow.webContents.send("file-wheel", { ...built, x, y });
-        if (!filePath) showMenuAtCursor("shortcut");
+        if (!filePath) showMenuAtCursor("file", built);
       };
       ipcMain.handle("run-file-slice", (_event, id, filePath) => {
         try {

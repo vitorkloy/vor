@@ -2077,7 +2077,13 @@ export default function App() {
     const cleanupMenu = window.electron?.onOpenMenu((data: {
       x: number;
       y: number;
-      source?: 'mmb' | 'mmb-click' | 'shortcut';
+      source?: 'mmb' | 'mmb-click' | 'shortcut' | 'file';
+      fileWheel?: {
+        mode: string;
+        format: string;
+        path: string;
+        items: { id: string; title: string; available: boolean; reason: string | null }[];
+      } | null;
       /** O main já sabe que o radial está aberto: este evento nunca deve abrir nem confirmar uma seleção. */
       closeOnly?: boolean;
       preSizedByMain?: boolean;
@@ -2088,12 +2094,22 @@ export default function App() {
       clientSize?: { width: number; height: number } | null;
       paintToken?: number;
     }) => {
+      if (data.source === 'file' && data.fileWheel) {
+        flushSync(() => {
+          setFileWheel({
+            mode: data.fileWheel!.mode,
+            format: data.fileWheel!.format,
+            path: data.fileWheel!.path,
+            items: data.fileWheel!.items,
+          });
+        });
+      }
       if (data.closeOnly) {
         closeMenuFromTrigger();
         return;
       }
-      /** Segundo MMB / atalho com o radial já aberto: alternar (fechar) em vez de reabrir. */
-      if (closeMenuFromTrigger()) return;
+      /** Segundo MMB / atalho com o radial já aberto: alternar (fechar) em vez de reabrir. O arrasto de ficheiro não usa este atalho. */
+      if (data.source !== 'file' && closeMenuFromTrigger()) return;
       void openMenuRef.current(data.x, data.y, data.source ?? 'shortcut', 'screen', {
         preSizedByMain: data.preSizedByMain === true,
         keepPanel: data.keepPanel === true,

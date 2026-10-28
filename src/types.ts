@@ -211,7 +211,13 @@ export interface ElectronAPI {
     callback: (data: {
       x: number;
       y: number;
-      source?: "mmb" | "mmb-click" | "shortcut";
+      source?: "mmb" | "mmb-click" | "shortcut" | "file";
+      fileWheel?: {
+        mode: string;
+        format: string;
+        path: string;
+        items: { id: string; title: string; available: boolean; reason: string | null }[];
+      } | null;
       /** True quando o main já aplicou fullscreen — evita segundo `applyWindowSize` no renderer. */
       preSizedByMain?: boolean;
       /** O painel continua no ecrã por baixo do radial — o renderer não o pode fechar. */
