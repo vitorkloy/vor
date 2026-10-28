@@ -2051,7 +2051,9 @@ export default function App() {
       const file = event.dataTransfer?.files?.[0];
       const fromBridge = file ? window.electron?.filePath?.(file) : "";
       const picked = fromBridge || (file as File & { path?: string } | undefined)?.path || "";
-      if (picked && picked.includes("\\") || picked && picked.startsWith("/")) {
+      const looksLikePath = Boolean(picked) && (picked.includes("\\") || picked.startsWith("/"));
+      if (looksLikePath) {
+        setFileWheel((current) => (current && !current.path ? { ...current, path: picked } : current));
         void window.electron?.noteFileDragPath?.(picked);
       }
     };
@@ -2110,7 +2112,7 @@ export default function App() {
       }
       /** Segundo MMB / atalho com o radial já aberto: alternar (fechar) em vez de reabrir. O arrasto de ficheiro não usa este atalho. */
       if (data.source !== 'file' && closeMenuFromTrigger()) return;
-      void openMenuRef.current(data.x, data.y, data.source === 'file' ? 'shortcut' : (data.source ?? 'shortcut'), 'screen', {
+      void openMenuRef.current(data.x, data.y, data.source === 'file' ? 'mmb' : (data.source ?? 'shortcut'), 'screen', {
         preSizedByMain: data.preSizedByMain === true,
         keepPanel: data.keepPanel === true,
         panelRect: data.panelRect ?? null,
@@ -2592,11 +2594,21 @@ export default function App() {
         const key = item.id.split(':')[1] || item.title;
         const title = names[key] || item.title;
         const reason = item.reason ? (reasons[item.reason] || item.reason) : '';
+        const icons: Record<string, string> = {
+          compress: 'Minimize2', removeMetadata: 'Eraser', editImage: 'PenLine', annotateImage: 'MessageSquare',
+          frameImage: 'Frame', cropImage: 'Crop', cropVideo: 'Crop', redactImage: 'EyeOff', redactVideo: 'EyeOff',
+          normalizeAudio: 'AudioLines', muteVideo: 'VolumeX', trimVideo: 'Scissors', trimAudio: 'Scissors',
+          splitPDF: 'SplitSquareHorizontal', splitVideo: 'SplitSquareHorizontal', organizePDF: 'ListOrdered',
+          extractArchive: 'Archive', createPDF: 'FilePlus', mergePDF: 'Files', changeVideoSpeed: 'Gauge',
+          joinVideos: 'Link', videoSnapshots: 'Camera', audioToVideo: 'Clapperboard', audioChannels: 'Headphones',
+          createCollage: 'LayoutGrid', redactAudio: 'AudioLines', airDrop: 'Share2', float: 'PictureInPicture2',
+          copy: 'Copy', move: 'FolderInput', copyPath: 'Clipboard', openTerminal: 'Terminal',
+        };
         return {
           id: item.id,
           type: 'app' as const,
           label: item.available ? title : `${title} · ${reason || (pt ? 'Indisponível' : 'Unavailable')}`,
-          iconName: 'File',
+          iconName: item.id.startsWith('conv:') ? 'FileOutput' : (icons[key] || 'File'),
           command: item.id,
           commandType: 'app' as const,
           description: reason || title,

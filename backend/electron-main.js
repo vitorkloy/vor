@@ -1280,16 +1280,22 @@ let radialOpenPaintSequence = 0;
 /** Verdadeiro enquanto o arrasto de arquivo mantém a roda de arquivos. Atalho e botão do meio não podem abrir a roda de apps nesse intervalo. */
 let fileGestureActive = false;
 
-function presentRadialWindow(source = "shortcut", fileWheel = null) {
+function presentRadialWindow(source = "shortcut", fileWheel = null, anchor = null) {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   const radialOpenStartedAt = Date.now();
+  const followCursor = source === "file" && anchor && Number.isFinite(anchor.x) && Number.isFinite(anchor.y);
+  radialAnchorFollowsPoint = followCursor;
 
-  /** Posição fixa significa fixa de verdade: nem a posição nem o monitor seguem o cursor. */
-  const targetDisplay = screen.getPrimaryDisplay();
-  let radialCenter = {
-    x: Math.round(targetDisplay.bounds.x + targetDisplay.bounds.width / 2),
-    y: Math.round(targetDisplay.bounds.y + targetDisplay.bounds.height / 2),
-  };
+  /** A roda de apps fica no centro. A de arquivo nasce no cursor, no monitor do arrasto. */
+  const targetDisplay = followCursor
+    ? screen.getDisplayNearestPoint({ x: anchor.x, y: anchor.y })
+    : screen.getPrimaryDisplay();
+  let radialCenter = followCursor
+    ? { x: Math.round(anchor.x), y: Math.round(anchor.y) }
+    : {
+        x: Math.round(targetDisplay.bounds.x + targetDisplay.bounds.width / 2),
+        y: Math.round(targetDisplay.bounds.y + targetDisplay.bounds.height / 2),
+      };
   /**
    * Se o centro real do monitor cabe dentro do HWND do Settings, mantemos o HWND completamente
    * imóvel (sem flash DWM) e desenhamos a roda naquele ponto em coordenadas de cliente. Antes este
@@ -1299,6 +1305,7 @@ function presentRadialWindow(source = "shortcut", fileWheel = null) {
    */
   let keepExistingPanelWindow = false;
   if (
+    !followCursor &&
     nativeWindowSizeMode === "windowed" &&
     rendererPanelVisible &&
     isMainWindowOnScreen()
@@ -1447,8 +1454,10 @@ function presentRadialWindow(source = "shortcut", fileWheel = null) {
         if (panelOverlayKeptWindow) {
           windowBuriedPassive = false;
           mainWindow.setIgnoreMouseEvents(false);
-          mainWindow.focus();
-          mainWindow.webContents.focus();
+          if (source !== "file") {
+            mainWindow.focus();
+            mainWindow.webContents.focus();
+          }
           if (process.platform === "win32") {
             mainWindow.setAlwaysOnTop(true, "screen-saver", 1);
           }
@@ -1496,11 +1505,14 @@ function presentRadialWindow(source = "shortcut", fileWheel = null) {
           /* diagnostic only */
         }
 
-        mainWindow.focus();
-        mainWindow.webContents.focus();
+        if (source !== "file") {
+          mainWindow.focus();
+          mainWindow.webContents.focus();
+        }
         if (process.platform === "win32") {
           mainWindow.setAlwaysOnTop(true, "screen-saver", 1);
         }
+        radialAnchorFollowsPoint = false;
 
         /**
          * O handshake já esperou dois paints completos. Invalidar depois de `show()` fazia o DWM
@@ -1626,8 +1638,8 @@ function showMenuAtCursor(source = "shortcut") {
 }
 
 /** Roda de arquivo: mesmo HWND, payload de fatias no open-menu, sem o atalho da roda de apps. */
-function showFileWheelAtCursor(fileWheel) {
-  presentRadialWindow("file", fileWheel);
+function showFileWheelAtCursor(fileWheel, x, y) {
+  presentRadialWindow("file", fileWheel, { x, y });
 }
 
 /**
@@ -1924,16 +1936,21 @@ function radialBoundsUnionWithPanel(radialRect, displayBounds) {
 }
 
 /** Caixa do radial sempre centrada no monitor apontado. A posição livre foi descontinuada. */
+/** Roda de arquivo: a caixa segue o cursor. A roda de apps continua no centro do monitor. */
+let radialAnchorFollowsPoint = false;
+
 function radialModeBounds(displayBounds, point) {
   const side = Math.min(
     radialViewportSize,
     displayBounds.width,
     displayBounds.height,
   );
-  const center = {
-    x: displayBounds.x + displayBounds.width / 2,
-    y: displayBounds.y + displayBounds.height / 2,
-  };
+  const center = radialAnchorFollowsPoint && point
+    ? point
+    : {
+        x: displayBounds.x + displayBounds.width / 2,
+        y: displayBounds.y + displayBounds.height / 2,
+      };
   const half = side / 2;
   const maxX = displayBounds.x + displayBounds.width - side;
   const maxY = displayBounds.y + displayBounds.height - side;
@@ -3844,35 +3861,97 @@ app.whenReady().then(async () => {
     tray.setToolTip("VOR");
     try {
       const shiftWheels = require("./shift-wheels.cjs");
+      const FILE_SOURCES = new Set([
+        "explorer.exe", "files.exe", "onecommander.exe", "totalcmd.exe", "totalcmd64.exe",
+        "doublecmd.exe", "explorer++.exe", "xyplorer.exe", "directoryopus.exe", "dopus.exe",
+      ]);
       let fileDragOpen = false;
       let fileDragOrigin = null;
       let fileDragMode = null;
+      let fileDragPath = "";
+      let fileSourceOk = false;
+      let fileSourceToken = 0;
+      let fileCursorTimer = null;
+      const stopFileCursor = () => {
+        if (!fileCursorTimer) return;
+        clearInterval(fileCursorTimer);
+        fileCursorTimer = null;
+      };
+      const startFileCursor = () => {
+        stopFileCursor();
+        fileCursorTimer = setInterval(() => {
+          if (!mainWindow || mainWindow.isDestroyed()) {
+            stopFileCursor();
+            return;
+          }
+          try {
+            const point = screen.getCursorScreenPoint();
+            mainWindow.webContents.send("mmb-cursor", { x: point.x, y: point.y });
+          } catch (e) { /* ignore */ }
+        }, 16);
+      };
+      const fileSourceHelper = spawn(
+        "powershell",
+        ["-NoProfile", "-STA", "-ExecutionPolicy", "Bypass", "-File", path.join(__dirname, "file-source.ps1")],
+        { stdio: ["pipe", "pipe", "ignore"] },
+      );
+      let fileSourceBuf = "";
+      const fileSourceWaiters = [];
+      fileSourceHelper.stdout.on("data", (chunk) => {
+        fileSourceBuf += chunk.toString("utf8");
+        const lines = fileSourceBuf.split(/\r?\n/);
+        fileSourceBuf = lines.pop() || "";
+        for (const line of lines) {
+          const waiter = fileSourceWaiters.shift();
+          if (waiter) waiter(line.trim().toLowerCase());
+        }
+      });
+      const queryFileSource = (x, y) => new Promise((resolve) => {
+        fileSourceWaiters.push(resolve);
+        try {
+          fileSourceHelper.stdin.write(`${Math.round(x)} ${Math.round(y)}\n`);
+        } catch (e) {
+          fileSourceWaiters.pop();
+          resolve("");
+        }
+      });
       const fileWheelMode = (ev) => {
         const keys = currentSettings.fileWheelKeys || {
           convert: "shift",
           tools: "ctrl",
           actions: "alt",
         };
-        const down = { shift: !!ev.shift, ctrl: !!ev.ctrl, alt: !!ev.alt };
+        const down = { shift: !!ev.shiftKey || !!ev.shift, ctrl: !!ev.ctrlKey || !!ev.ctrl, alt: !!ev.altKey || !!ev.alt };
         if (down[keys.convert]) return "convert";
         if (down[keys.tools]) return "tools";
         if (down[keys.actions]) return "actions";
         return null;
       };
+      const cancelFileWheel = () => {
+        fileDragOpen = false;
+        fileGestureActive = false;
+        fileDragMode = null;
+        stopFileCursor();
+        if (!mainWindow || mainWindow.isDestroyed()) return;
+        mainWindow.webContents.send("open-menu", { closeOnly: true, source: "file", x: 0, y: 0, fileWheel: null });
+      };
       const revealFileWheel = (x, y, mode, filePath) => {
         if (!mainWindow || mainWindow.isDestroyed()) return;
+        const switching = fileDragOpen && mode !== fileDragMode;
         fileDragOpen = true;
         fileDragMode = mode;
-        const built = filePath
-          ? shiftWheels.build(filePath, mode)
-          : { mode, format: "…", kind: "other", path: "", items: [] };
+        if (filePath) fileDragPath = filePath;
+        const built = fileDragPath
+          ? shiftWheels.build(fileDragPath, mode)
+          : shiftWheels.pending(mode);
         mainWindow.setIgnoreMouseEvents(false);
         mainWindow.setAlwaysOnTop(true, "screen-saver", 1);
         if (!mainWindow.isVisible()) mainWindow.showInactive();
         mainWindow.webContents.send("file-wheel", { ...built, x, y });
-        if (!filePath) {
+        if (!switching && !filePath) {
           fileGestureActive = true;
-          showFileWheelAtCursor(built);
+          startFileCursor();
+          showFileWheelAtCursor(built, x, y);
         }
       };
       ipcMain.handle("run-file-slice", (_event, id, filePath) => {
@@ -3900,21 +3979,50 @@ app.whenReady().then(async () => {
         fileDragOrigin = { x: e.x, y: e.y };
         fileDragOpen = false;
         fileDragMode = null;
+        fileDragPath = "";
+        fileSourceOk = false;
+        const token = ++fileSourceToken;
+        queryFileSource(e.x, e.y).then((name) => {
+          if (token !== fileSourceToken) return;
+          fileSourceOk = FILE_SOURCES.has(name);
+        });
       });
       uIOhook.on("mousemove", (e) => {
-        if (!fileDragOrigin || fileDragOpen) return;
+        if (!fileDragOrigin || fileDragOpen || !fileSourceOk) return;
         const dx = e.x - fileDragOrigin.x;
         const dy = e.y - fileDragOrigin.y;
         if (dx * dx + dy * dy <= 144) return;
-        const mode = fileWheelMode({ shift: e.shiftKey, ctrl: e.ctrlKey, alt: e.altKey });
+        const mode = fileWheelMode(e);
         if (!mode) return;
-        revealFileWheel(e.x, e.y, mode, "");
+        const point = screen.getCursorScreenPoint();
+        revealFileWheel(point.x, point.y, mode, "");
+      });
+      uIOhook.on("keydown", (e) => {
+        if (e.keycode === 1) {
+          if (fileDragOpen) cancelFileWheel();
+          return;
+        }
+        if (!fileDragOrigin || !fileSourceOk) return;
+        const mode = fileWheelMode(e);
+        if (!mode) return;
+        const point = screen.getCursorScreenPoint();
+        if (!fileDragOpen) {
+          const dx = point.x - fileDragOrigin.x;
+          const dy = point.y - fileDragOrigin.y;
+          if (dx * dx + dy * dy <= 144) return;
+          revealFileWheel(point.x, point.y, mode, "");
+          return;
+        }
+        if (mode !== fileDragMode) revealFileWheel(point.x, point.y, mode, fileDragPath);
       });
       uIOhook.on("mouseup", (e) => {
         if (e.button !== 1) return;
         fileDragOrigin = null;
+        fileSourceOk = false;
+        stopFileCursor();
         if (!fileDragOpen || !mainWindow || mainWindow.isDestroyed()) {
           fileDragOpen = false;
+          fileGestureActive = false;
           return;
         }
         fileDragOpen = false;

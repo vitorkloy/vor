@@ -161,6 +161,21 @@ function item(id, title, gate) {
   return { id, title, available: gate.available, reason: gate.reason };
 }
 
+function pending(mode) {
+  return {
+    mode,
+    format: "…",
+    kind: "other",
+    path: "",
+    items: Array.from({ length: 6 }, (_, i) => ({
+      id: `pending:${i}`,
+      title: "…",
+      available: false,
+      reason: null,
+    })),
+  };
+}
+
 function build(filePath, mode) {
   const t = tools();
   const fmt = fmtOf(filePath);
@@ -263,4 +278,4 @@ function run(id, filePath) {
   throw new Error(SOON);
 }
 
-module.exports = { build, run, tools };
+module.exports = { build, pending, run, tools };
