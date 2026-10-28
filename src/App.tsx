@@ -2110,7 +2110,7 @@ export default function App() {
       }
       /** Segundo MMB / atalho com o radial já aberto: alternar (fechar) em vez de reabrir. O arrasto de ficheiro não usa este atalho. */
       if (data.source !== 'file' && closeMenuFromTrigger()) return;
-      void openMenuRef.current(data.x, data.y, data.source ?? 'shortcut', 'screen', {
+      void openMenuRef.current(data.x, data.y, data.source === 'file' ? 'shortcut' : (data.source ?? 'shortcut'), 'screen', {
         preSizedByMain: data.preSizedByMain === true,
         keepPanel: data.keepPanel === true,
         panelRect: data.panelRect ?? null,
