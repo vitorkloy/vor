@@ -285,6 +285,14 @@
 }
 .zs-fold:hover { color: var(--zn-text); }
 .zs-fold svg { transition: transform .15s var(--zn-ease); }
+.zs-group.is-card {
+  padding: var(--zn-3) var(--zn-4);
+  border: 1px solid var(--zn-line);
+  border-radius: var(--zn-r-control);
+  background: var(--zn-raised);
+}
+.zs-group.is-card .zs-fold { margin-bottom: 0; }
+.zs-group.is-card.is-open .zs-fold { margin-bottom: var(--zn-2); }
 
 /* Composição contínua: os divisores separam, não caixas. */
 .zs-rows { border-top: 1px solid var(--zn-line); }

@@ -125,8 +125,8 @@ const PT: Record<string, string> = {
   Keys: 'Teclas',
   'App wheel': 'Roda de apps',
   'Middle button (Wheel), in Click or Hold, plus Alt+Z.': 'Botão do meio (Roda), em Clique ou Segurar, mais Alt+Z.',
-  'File wheel': 'Roda de ficheiros',
-  'Drag a file more than 12 px and hold Shift, Ctrl, or Alt. Those keys alone do not open the app wheel.': 'Arraste um ficheiro mais de 12 px e mantenha Shift, Ctrl ou Alt. Essas teclas sozinhas não abrem a roda de apps.',
+  'File wheel': 'Roda de arquivos',
+  'Drag a file more than 12 px and hold Shift, Ctrl, or Alt. Those keys alone do not open the app wheel.': 'Arraste um arquivo mais de 12 px e mantenha Shift, Ctrl ou Alt. Essas teclas sozinhas não abrem a roda de apps.',
   Keyboard: 'Teclado',
   'Global shortcut': 'Atalho global',
   'Open the wheel over any application.': 'Abre a roda por cima de qualquer aplicação.',
@@ -148,7 +148,7 @@ const PT: Record<string, string> = {
   Convert: 'Converter',
   Tools: 'Ferramentas',
   Actions: 'Ações',
-  'Key held while dragging a file.': 'Tecla mantida ao arrastar um ficheiro.',
+  'Key held while dragging a file.': 'Tecla mantida ao arrastar um arquivo.',
   Theme: 'Tema',
   'VOR surfaces': 'Superfícies do VOR',
   'Applies to the window and title bar. The wheel remains dark.': 'Aplica-se à janela e à barra. A roda continua escura.',
@@ -874,7 +874,7 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
                       && (group.name === 'App wheel' || group.name === 'File wheel');
                     const expanded = !foldable || openFold === group.name;
                     return (
-                    <section className="zs-group" key={group.name}>
+                    <section className={`zs-group${foldable ? ' is-card' : ''}${foldable && expanded ? ' is-open' : ''}`} key={group.name}>
                       {foldable ? (
                         <button
                           type="button"
