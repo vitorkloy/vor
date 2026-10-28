@@ -11,7 +11,6 @@ import {
   workspaceContainsBundledDemoApp,
 } from './defaults';
 import { Minus, X, Maximize, Square, AlertTriangle, ArrowLeft, ArrowRight, PanelLeftClose } from 'lucide-react';
-import type { Language } from './translations';
 import { motion, AnimatePresence } from 'framer-motion';
 import { isLikelyWebUrl, resolveWebsiteIconFields } from './siteFavicon';
 
@@ -1139,8 +1138,6 @@ export default function App() {
         }
 
         const discoverHasDemoFingerprint = hasDemoFingerprint;
-        nextConfig = { ...nextConfig, language: 'en' };
-        const uiLangDeferred = 'en' as Language;
 
         /**
          * Arranque sem dados anteriores (reset / primeira instalação): mostrar overlay imediatamente
@@ -1265,8 +1262,10 @@ export default function App() {
 
       if (cancelled) return;
 
-      /** Apply English to every profile, including previously persisted configurations. */
-      nextConfig = { ...nextConfig, language: 'en' };
+      const uiLanguage = nextConfig.uiLanguage ?? (nextConfig.language === 'pt' ? 'pt' : 'system');
+      const systemIsPortuguese = (navigator.language || 'en').toLowerCase().startsWith('pt');
+      const language = uiLanguage === 'pt' ? 'pt' : uiLanguage === 'en' ? 'en' : (systemIsPortuguese ? 'pt' : 'en');
+      nextConfig = { ...nextConfig, uiLanguage, language };
 
       hydratedFromPersistenceRef.current =
         !!(finalData || loadedFromLocalStorageMigration);
@@ -2888,7 +2887,13 @@ export default function App() {
             viewportSize={radialClientSize}
             onClose={handleMenuClose}
             apps={radialApps}
-            config={fileWheel ? { ...radialMenuConfig, alwaysShowAppLabels: true, menuRadius: Math.round(radialMenuConfig.menuRadius * (config.fileWheelScale || 1)) } : radialMenuConfig}
+            config={fileWheel ? {
+              ...radialMenuConfig,
+              alwaysShowAppLabels: true,
+              menuRadius: config.fileWheelRadius ?? 140,
+              iconSize: config.fileWheelIconSize ?? 55,
+              appSpacing: config.fileWheelSpacing ?? 10,
+            } : radialMenuConfig}
             hubCaption={fileWheel?.format ?? null}
             triggerSource={triggerSource}
             updateReady={updateReady}

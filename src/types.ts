@@ -145,9 +145,14 @@ export interface UIConfig {
    */
   mouseTriggerButton?: 'middle' | 'x1' | 'x2';
   language: "pt" | "en" | "es" | "fr" | "de" | "it" | "ja" | "zh" | "ko" | "ru";
-  /** Teclas das rodas de ficheiro e escala visual. */
+  /** system segue o Windows; pt antigo conta como Português (Brasil). */
+  uiLanguage?: "system" | "en" | "pt";
+  /** Teclas das rodas de ficheiro. */
   fileWheelKeys?: { convert: "shift" | "ctrl" | "alt"; tools: "shift" | "ctrl" | "alt"; actions: "shift" | "ctrl" | "alt" };
   fileWheelScale?: number;
+  fileWheelRadius?: number;
+  fileWheelIconSize?: number;
+  fileWheelSpacing?: number;
   performanceMode: boolean; // New: Strict performance mode for zero-lag
   /**
    * Start Menu discovery já correu ou o Main foi guardado com apps à medida — não voltar a importar atalhos no arranque.

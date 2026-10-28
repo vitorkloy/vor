@@ -250,8 +250,12 @@ export const DEFAULT_UI_CONFIG: UIConfig = {
   mouseTriggerMode: 'hold',
   mouseTriggerButton: 'middle',
   language: "en",
+  uiLanguage: "system",
   fileWheelKeys: { convert: "shift", tools: "ctrl", actions: "alt" },
   fileWheelScale: 1,
+  fileWheelRadius: 140,
+  fileWheelIconSize: 55,
+  fileWheelSpacing: 10,
   performanceMode: false,
   mainStartMenuDiscoveryDone: false,
 };

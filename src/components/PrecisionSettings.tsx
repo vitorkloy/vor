@@ -65,7 +65,7 @@ interface SettingItem {
   group: string;
   title: string;
   description?: string;
-  kind: 'bool' | 'range' | 'segmented' | 'open' | 'action' | 'color';
+  kind: 'bool' | 'range' | 'segmented' | 'open' | 'action' | 'color' | 'note';
   enabled?: boolean;
   value?: string;
   min?: number;
@@ -102,6 +102,83 @@ const SECTIONS: Array<{ id: SectionId; label: string; caption: string; icon: Luc
   { id: 'spaces', label: 'Workspaces', caption: 'Contexts and their shortcuts.', icon: SquareStack },
   { id: 'advanced', label: 'Advanced', caption: 'Performance, protection, and data.', icon: Shield },
 ];
+
+const PT: Record<string, string> = {
+  Settings: 'Definições',
+  Search: 'Procurar',
+  General: 'Geral',
+  'Core VOR behavior.': 'Comportamento central do VOR.',
+  Activation: 'Ativação',
+  'How and where the wheel appears.': 'Como e onde a roda aparece.',
+  Appearance: 'Aparência',
+  'Shape, presence, and theme.': 'Forma, presença e tema.',
+  Workspaces: 'Espaços',
+  'Contexts and their shortcuts.': 'Contextos e os seus atalhos.',
+  Advanced: 'Avançado',
+  'Performance, protection, and data.': 'Desempenho, proteção e dados.',
+  Startup: 'Arranque',
+  'Start with Windows': 'Iniciar com o Windows',
+  'VOR is ready as soon as you sign in to Windows.': 'O VOR fica pronto assim que inicia sessão no Windows.',
+  'Workspace switching': 'Mudança de espaço',
+  'Use the visual wheel picker or number keys.': 'Use a roda visual ou as teclas numéricas.',
+  Picker: 'Roda',
+  Keys: 'Teclas',
+  'App wheel': 'Roda de apps',
+  'Middle button (Wheel), in Click or Hold, plus Alt+Z.': 'Botão do meio (Roda), em Clique ou Segurar, mais Alt+Z.',
+  'File wheel': 'Roda de ficheiros',
+  'Drag a file more than 12 px and hold Shift, Ctrl, or Alt. Those keys alone do not open the app wheel.': 'Arraste um ficheiro mais de 12 px e mantenha Shift, Ctrl ou Alt. Essas teclas sozinhas não abrem a roda de apps.',
+  Keyboard: 'Teclado',
+  'Global shortcut': 'Atalho global',
+  'Open the wheel over any application.': 'Abre a roda por cima de qualquer aplicação.',
+  Mouse: 'Rato',
+  'Mouse trigger': 'Gatilho do rato',
+  'Open VOR with a mouse button instead of the keyboard.': 'Abre o VOR com um botão do rato em vez do teclado.',
+  'Trigger button': 'Botão',
+  'Side buttons are usually free; left and right stay with Windows.': 'Os botões laterais costumam estar livres; esquerdo e direito ficam com o Windows.',
+  Wheel: 'Roda',
+  Back: 'Voltar',
+  Forward: 'Avançar',
+  'Gesture behavior': 'Gesto',
+  'Click keeps the wheel open; hold runs the selection on release.': 'Clique deixa a roda aberta; segurar executa ao soltar.',
+  Click: 'Clique',
+  Hold: 'Segurar',
+  Position: 'Posição',
+  'Activation zone': 'Zona de ativação',
+  'Cursor distance required to confirm a target.': 'Distância do cursor para confirmar um alvo.',
+  Convert: 'Converter',
+  Tools: 'Ferramentas',
+  Actions: 'Ações',
+  'Key held while dragging a file.': 'Tecla mantida ao arrastar um ficheiro.',
+  Theme: 'Tema',
+  'VOR surfaces': 'Superfícies do VOR',
+  'Applies to the window and title bar. The wheel remains dark.': 'Aplica-se à janela e à barra. A roda continua escura.',
+  Black: 'Preto',
+  White: 'Branco',
+  'Orbital radius': 'Raio orbital',
+  'Perceived wheel diameter.': 'Diâmetro percebido da roda.',
+  'Icon size': 'Tamanho do ícone',
+  'Visual weight of each target.': 'Peso visual de cada alvo.',
+  'Target spacing': 'Espaço entre alvos',
+  'Free space between items.': 'Espaço livre entre itens.',
+  'Hover color': 'Cor ao pairar',
+  'Color used by the target under the pointer.': 'Cor do alvo sob o ponteiro.',
+  Targeting: 'Mira',
+  Direction: 'Direção',
+  Pointer: 'Ponteiro',
+  'Persistent labels': 'Rótulos persistentes',
+  'Keep every target name visible.': 'Mantém o nome de cada alvo visível.',
+  Presence: 'Presença',
+  'Wheel opacity': 'Opacidade da roda',
+  'Make the interface more solid or subtle.': 'Deixa a interface mais sólida ou mais subtil.',
+  'Background dimming': 'Escurecimento do fundo',
+  'How much the rest of the screen recedes.': 'Quanto o resto do ecrã recua.',
+  'Your workspaces': 'Os seus espaços',
+  Results: 'Resultados',
+  'No settings found.': 'Nenhuma definição encontrada.',
+  English: 'English',
+  'Português (Brasil)': 'Português (Brasil)',
+  'Idioma do sistema': 'Idioma do sistema',
+};
 
 export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
   isOpen,
@@ -418,6 +495,49 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
       ],
       trigger: [
         {
+          key: 'app-wheel-note', group: 'App wheel', title: 'App wheel',
+          description: 'Middle button (Wheel), in Click or Hold, plus Alt+Z.',
+          kind: 'note',
+        },
+        {
+          key: 'file-wheel-note', group: 'File wheel', title: 'File wheel',
+          description: 'Drag a file more than 12 px and hold Shift, Ctrl, or Alt. Those keys alone do not open the app wheel.',
+          kind: 'note',
+        },
+        {
+          key: 'file-convert', group: 'File wheel', title: 'Convert',
+          description: 'Key held while dragging a file.',
+          kind: 'segmented', current: config.fileWheelKeys?.convert ?? 'shift',
+          choices: [{ value: 'shift', label: 'Shift' }, { value: 'ctrl', label: 'Ctrl' }, { value: 'alt', label: 'Alt' }],
+          onChange: (value) => {
+            const fileWheelKeys = { convert: 'shift' as const, tools: 'ctrl' as const, actions: 'alt' as const, ...config.fileWheelKeys, convert: value as 'shift' | 'ctrl' | 'alt' };
+            update('fileWheelKeys', fileWheelKeys);
+            window.electron?.setSettings?.({ fileWheelKeys, globalShortcut: config.globalShortcut });
+          },
+        },
+        {
+          key: 'file-tools', group: 'File wheel', title: 'Tools',
+          description: 'Key held while dragging a file.',
+          kind: 'segmented', current: config.fileWheelKeys?.tools ?? 'ctrl',
+          choices: [{ value: 'shift', label: 'Shift' }, { value: 'ctrl', label: 'Ctrl' }, { value: 'alt', label: 'Alt' }],
+          onChange: (value) => {
+            const fileWheelKeys = { convert: 'shift' as const, tools: 'ctrl' as const, actions: 'alt' as const, ...config.fileWheelKeys, tools: value as 'shift' | 'ctrl' | 'alt' };
+            update('fileWheelKeys', fileWheelKeys);
+            window.electron?.setSettings?.({ fileWheelKeys, globalShortcut: config.globalShortcut });
+          },
+        },
+        {
+          key: 'file-actions', group: 'File wheel', title: 'Actions',
+          description: 'Key held while dragging a file.',
+          kind: 'segmented', current: config.fileWheelKeys?.actions ?? 'alt',
+          choices: [{ value: 'shift', label: 'Shift' }, { value: 'ctrl', label: 'Ctrl' }, { value: 'alt', label: 'Alt' }],
+          onChange: (value) => {
+            const fileWheelKeys = { convert: 'shift' as const, tools: 'ctrl' as const, actions: 'alt' as const, ...config.fileWheelKeys, actions: value as 'shift' | 'ctrl' | 'alt' };
+            update('fileWheelKeys', fileWheelKeys);
+            window.electron?.setSettings?.({ fileWheelKeys, globalShortcut: config.globalShortcut });
+          },
+        },
+        {
           key: 'shortcut', group: 'Keyboard', title: 'Global shortcut',
           description: 'Open the wheel over any application.',
           kind: 'open', value: config.globalShortcut, onOpen: () => setEditor({ kind: 'shortcut' }),
@@ -463,6 +583,12 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
           config.iconSize, 36, 92, (value) => update('iconSize', value), (value) => `${Math.round(value)} px`),
         range('spacing', 'Wheel', 'Target spacing', 'Free space between items.',
           config.appSpacing ?? 10, 0, 40, (value) => update('appSpacing', value), (value) => `${Math.round(value)} px`),
+        range('file-radius', 'File wheel', 'Orbital radius', 'Perceived wheel diameter.',
+          config.fileWheelRadius ?? 140, 90, 220, (value) => update('fileWheelRadius', value), (value) => `${Math.round(value)} px`),
+        range('file-icon', 'File wheel', 'Icon size', 'Visual weight of each target.',
+          config.fileWheelIconSize ?? 55, 36, 92, (value) => update('fileWheelIconSize', value), (value) => `${Math.round(value)} px`),
+        range('file-spacing', 'File wheel', 'Target spacing', 'Free space between items.',
+          config.fileWheelSpacing ?? 10, 0, 40, (value) => update('fileWheelSpacing', value), (value) => `${Math.round(value)} px`),
         {
           key: 'radialHoverColor', group: 'Wheel', title: 'Hover color',
           description: 'Color used by the target under the pointer.',
@@ -595,13 +721,23 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
     };
   }, [config, gameMode, theme, apps, update, updateInfo, updateBusy, updateNote, isStoreBuild, runUpdateCheck, onReset, deleteWorkspace, reorderWorkspaces]);
 
+  const tr = (text?: string) => {
+    if (!text) return '';
+    return config.language === 'pt' ? (PT[text] ?? text) : text;
+  };
+  const uiLanguage = config.uiLanguage ?? (config.language === 'pt' ? 'pt' : 'system');
+  const chooseLanguage = (next: 'system' | 'en' | 'pt') => {
+    const language = next === 'pt' ? 'pt' : next === 'en' ? 'en' : ((navigator.language || 'en').toLowerCase().startsWith('pt') ? 'pt' : 'en');
+    setConfig((current) => ({ ...current, uiLanguage: next, language }));
+  };
+
   const trimmedQuery = query.trim().toLowerCase();
   const activeMeta = SECTIONS.find((section) => section.id === sectionId)!;
 
   /** Buscar percorre todas as categorias — procurar só na categoria aberta obrigava a adivinhar onde a opção vive. */
   const results = useMemo(() => {
     const matches = (item: SettingItem) =>
-      !trimmedQuery || `${item.title} ${item.description ?? ''} ${item.group}`.toLowerCase().includes(trimmedQuery);
+      !trimmedQuery || `${tr(item.title)} ${tr(item.description)} ${tr(item.group)}`.toLowerCase().includes(trimmedQuery);
 
     const source = trimmedQuery
       ? SECTIONS.flatMap((section) => sections[section.id].filter(matches))
@@ -615,7 +751,7 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
       else groups.push({ name: item.group, items: [item] });
     }
     return groups;
-  }, [sections, sectionId, trimmedQuery]);
+  }, [sections, sectionId, trimmedQuery, config.language]);
 
   const isEmpty = results.length === 0;
 
@@ -636,7 +772,7 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
       >
         <aside className="zs-sidebar">
           <div className="zs-sidebar-head">
-            <h2>Settings</h2>
+            <h2>{tr('Settings')}</h2>
           </div>
 
           <div className="zs-search">
@@ -645,14 +781,32 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
               id="zs-search-input"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search"
-              aria-label="Search settings"
+              placeholder={tr('Search')}
+              aria-label={tr('Search')}
             />
             {query && (
               <button type="button" onClick={() => setQuery('')} aria-label="Clear search">
                 <X size={13} strokeWidth={2} />
               </button>
             )}
+          </div>
+
+          <div className="zs-nav" aria-label={tr('Idioma do sistema')}>
+            {([
+              ['en', 'English'],
+              ['pt', 'Português (Brasil)'],
+              ['system', 'Idioma do sistema'],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                className={uiLanguage === value ? 'is-active' : ''}
+                onClick={() => chooseLanguage(value)}
+              >
+                <Globe2 size={15} strokeWidth={1.8} />
+                <span>{tr(label)}</span>
+              </button>
+            ))}
           </div>
 
           <nav className="zs-nav" aria-label="Settings sections">
@@ -667,7 +821,7 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
                   onClick={() => { setSectionId(section.id); setQuery(''); }}
                 >
                   <Icon size={15} strokeWidth={1.8} />
-                  <span>{section.label}</span>
+                  <span>{tr(section.label)}</span>
                 </button>
               );
             })}
@@ -689,12 +843,12 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
               >
-                <h1>{trimmedQuery ? 'Results' : activeMeta.label}</h1>
-                <p>{trimmedQuery ? `Settings matching “${query.trim()}”.` : activeMeta.caption}</p>
+                <h1>{trimmedQuery ? tr('Results') : tr(activeMeta.label)}</h1>
+                <p>{trimmedQuery ? `Settings matching “${query.trim()}”.` : tr(activeMeta.caption)}</p>
               </motion.header>
 
               {isEmpty ? (
-                <p className="zs-empty">No settings found.</p>
+                <p className="zs-empty">{tr('No settings found.')}</p>
               ) : (
                 <motion.div
                   key={`body-${trimmedQuery ? `q-${trimmedQuery}` : sectionId}`}
@@ -704,7 +858,7 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
                 >
                   {results.map((group) => (
                     <section className="zs-group" key={group.name}>
-                      <h2 className="zs-group-title">{group.name}</h2>
+                      <h2 className="zs-group-title">{tr(group.name)}</h2>
                       {group.name === 'Your workspaces' && !trimmedQuery ? (
                         /** Fora da pesquisa a grelha manda; a procurar, as linhas continuam a dar resultados. */
                         <WorkspaceCards
@@ -718,7 +872,7 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
                       ) : (
                         <div className="zs-rows">
                           {group.items.map((item) => (
-                            <SettingRow key={item.key} item={item} />
+                            <SettingRow key={item.key} item={item} tr={tr} />
                           ))}
                         </div>
                       )}
@@ -768,7 +922,7 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
 };
 
 /** Uma linha, uma estrutura: cópia à esquerda, controlo alinhado à direita. */
-function SettingRow({ item }: { item: SettingItem }) {
+function SettingRow({ item, tr }: { item: SettingItem; tr: (text?: string) => string }) {
   const ActionIcon = item.actionIcon;
   const describedBy = item.description ? `${item.key}-desc` : undefined;
   const reorderable = typeof item.reorderIndex === 'number' && Boolean(item.onReorder);
@@ -830,8 +984,8 @@ function SettingRow({ item }: { item: SettingItem }) {
         </span>
       )}
       <div className="zs-row-copy">
-        <b id={`${item.key}-label`}>{item.title}</b>
-        {item.description && <small id={describedBy}>{item.description}</small>}
+        <b id={`${item.key}-label`}>{tr(item.title)}</b>
+        {item.description && <small id={describedBy}>{tr(item.description)}</small>}
       </div>
 
       <div className="zs-row-control" onClick={(event) => event.stopPropagation()}>
@@ -860,7 +1014,7 @@ function SettingRow({ item }: { item: SettingItem }) {
                 className={item.current === choice.value ? 'is-selected' : ''}
                 onClick={() => item.onChange?.(choice.value)}
               >
-                {choice.label}
+                {tr(choice.label)}
               </button>
             ))}
           </div>
@@ -893,7 +1047,7 @@ function SettingRow({ item }: { item: SettingItem }) {
         {item.kind === 'action' && (
           <button type="button" className="zs-btn" onClick={item.onRun} aria-labelledby={`${item.key}-label`}>
             {ActionIcon && <ActionIcon size={14} strokeWidth={1.9} />}
-            {item.actionLabel}
+            {tr(item.actionLabel)}
           </button>
         )}
       </div>
