@@ -4,8 +4,36 @@ const labelEl = document.getElementById("label");
 const wheelEl = document.getElementById("wheel");
 const hubEl = document.getElementById("hub");
 
-const RADIUS = 132;
-const DEAD = 58;
+const KEY = "vor-ui";
+const DEFAULTS = {
+  menuRadius: 150,
+  iconSize: 64,
+  appSpacing: 14,
+  backdropOpacity: 0.45,
+  showLabels: true,
+  performanceMode: false,
+  showClock: true,
+};
+
+function config() {
+  try {
+    return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || "{}") };
+  } catch {
+    return { ...DEFAULTS };
+  }
+}
+
+function scrim(opacity) {
+  const peak = 0.22 + opacity * 0.3;
+  const radius = 280;
+  const stops = [0, 0.12, 0.25, 0.38, 0.5, 0.62, 0.75, 0.88, 1]
+    .map((t) => {
+      const falloff = 1 - (3 * t * t - 2 * t * t * t);
+      return `rgba(4,5,7,${(peak * falloff).toFixed(3)}) ${Math.round(t * radius)}px`;
+    })
+    .join(", ");
+  return `radial-gradient(circle at 50% 50%, ${stops})`;
+}
 
 let items = [];
 let aimed = -1;
@@ -19,22 +47,42 @@ function eventApi() {
 }
 
 function layout(list) {
+  const cfg = config();
+  const scrimEl = wheelEl.querySelector(".zn-radial-scrim");
+  scrimEl.style.setProperty("--zn-scrim", scrim(cfg.backdropOpacity));
+  wheelEl.classList.toggle("is-fast", cfg.performanceMode);
+  const hud = document.getElementById("hud");
+  hud.hidden = !cfg.showClock;
   sectorsEl.replaceChildren();
   const n = list.length;
+  const tile = cfg.iconSize;
+  const radius = Math.max(92, cfg.menuRadius * 0.72);
+  const shade = 12 + Math.round(cfg.backdropOpacity * 10);
   list.forEach((item, i) => {
     const angle = -Math.PI / 2 + (2 * Math.PI * i) / n;
-    const dx = Math.cos(angle) * RADIUS;
-    const dy = Math.sin(angle) * RADIUS;
+    const dx = Math.cos(angle) * radius;
+    const dy = Math.sin(angle) * radius;
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "zn-slice";
     btn.textContent = short(item.label);
     btn.title = item.label;
-    btn.style.left = `${dx}px`;
-    btn.style.top = `${dy}px`;
+    btn.style.setProperty("--tile", `${tile}px`);
+    btn.style.setProperty("--tile-bg", `rgb(${shade},${shade},${shade})`);
+    btn.style.setProperty("--dx", `${dx}px`);
+    btn.style.setProperty("--dy", `${dy}px`);
     btn.addEventListener("pointerenter", () => setAimed(i));
     btn.addEventListener("click", () => confirm(i));
-    sectorsEl.appendChild(btn);
+    const label = document.createElement("div");
+    label.className = "slice-label";
+    label.style.setProperty("--lx", `${dx}px`);
+    label.style.setProperty("--ly", `${dy + tile / 2}px`);
+    const text = document.createElement("span");
+    text.textContent = item.label;
+    label.append(text);
+    label.hidden = !cfg.showLabels;
+    sectorsEl.append(btn, label);
+    requestAnimationFrame(() => btn.classList.add("is-in"));
   });
 }
 
@@ -44,9 +92,23 @@ function short(label) {
 
 function setAimed(index) {
   aimed = index;
-  [...sectorsEl.children].forEach((el, i) => el.classList.toggle("is-aimed", i === index));
-  labelEl.textContent = index >= 0 ? items[index].label : "";
+  const slices = [...sectorsEl.querySelectorAll(".zn-slice")];
+  const labels = [...sectorsEl.querySelectorAll(".slice-label")];
+  slices.forEach((el, i) => el.classList.toggle("is-aimed", i === index));
+  labels.forEach((el, i) => {
+    el.classList.toggle("is-on", config().showLabels);
+    el.classList.toggle("is-aimed", i === index);
+  });
+  labelEl.textContent = "";
 }
+
+function tickClock() {
+  const el = document.getElementById("clock");
+  if (!el || !config().showClock) return;
+  el.textContent = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
+setInterval(tickClock, 1000);
+tickClock();
 
 function aimFromScreen(x, y) {
   if (!anchor) return;
@@ -54,7 +116,7 @@ function aimFromScreen(x, y) {
   const cy = anchor.originY + anchor.height / 2;
   const dx = x - cx;
   const dy = y - cy;
-  if (Math.hypot(dx, dy) < DEAD || items.length === 0) {
+  if (Math.hypot(dx, dy) < Math.max(58, config().iconSize * 0.9) || items.length === 0) {
     setAimed(-1);
     return;
   }
