@@ -904,7 +904,7 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
                             <SettingRow key={item.key} item={item} tr={tr} />
                           ))}
                         </div>
-                      )}
+                      ))}
                     </section>
                     );
                   })}
