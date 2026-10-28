@@ -459,6 +459,19 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
     showToast(result?.success ? 'Settings imported' : result?.error || 'Could not import settings');
   };
 
+  const assignFileWheelKey = useCallback((slot: 'convert' | 'tools' | 'actions', key: 'shift' | 'ctrl' | 'alt') => {
+    const current = {
+      convert: config.fileWheelKeys?.convert ?? 'shift',
+      tools: config.fileWheelKeys?.tools ?? 'ctrl',
+      actions: config.fileWheelKeys?.actions ?? 'alt',
+    };
+    const owner = (['convert', 'tools', 'actions'] as const).find((name) => name !== slot && current[name] === key);
+    const fileWheelKeys = { ...current, [slot]: key };
+    if (owner) fileWheelKeys[owner] = current[slot];
+    update('fileWheelKeys', fileWheelKeys);
+    window.electron?.setSettings?.({ fileWheelKeys, globalShortcut: config.globalShortcut });
+  }, [config.fileWheelKeys, config.globalShortcut, update]);
+
   const sections = useMemo<Record<SectionId, SettingItem[]>>(() => {
     const range = (
       key: string,
@@ -509,33 +522,21 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
           description: 'Key held while dragging a file.',
           kind: 'segmented', current: config.fileWheelKeys?.convert ?? 'shift',
           choices: [{ value: 'shift', label: 'Shift' }, { value: 'ctrl', label: 'Ctrl' }, { value: 'alt', label: 'Alt' }],
-          onChange: (value) => {
-            const fileWheelKeys = { convert: value as 'shift' | 'ctrl' | 'alt', tools: config.fileWheelKeys?.tools ?? 'ctrl', actions: config.fileWheelKeys?.actions ?? 'alt' };
-            update('fileWheelKeys', fileWheelKeys);
-            window.electron?.setSettings?.({ fileWheelKeys, globalShortcut: config.globalShortcut });
-          },
+          onChange: (value) => assignFileWheelKey('convert', value as 'shift' | 'ctrl' | 'alt'),
         },
         {
           key: 'file-tools', group: 'File wheel', title: 'Tools',
           description: 'Key held while dragging a file.',
           kind: 'segmented', current: config.fileWheelKeys?.tools ?? 'ctrl',
           choices: [{ value: 'shift', label: 'Shift' }, { value: 'ctrl', label: 'Ctrl' }, { value: 'alt', label: 'Alt' }],
-          onChange: (value) => {
-            const fileWheelKeys = { convert: config.fileWheelKeys?.convert ?? 'shift', tools: value as 'shift' | 'ctrl' | 'alt', actions: config.fileWheelKeys?.actions ?? 'alt' };
-            update('fileWheelKeys', fileWheelKeys);
-            window.electron?.setSettings?.({ fileWheelKeys, globalShortcut: config.globalShortcut });
-          },
+          onChange: (value) => assignFileWheelKey('tools', value as 'shift' | 'ctrl' | 'alt'),
         },
         {
           key: 'file-actions', group: 'File wheel', title: 'Actions',
           description: 'Key held while dragging a file.',
           kind: 'segmented', current: config.fileWheelKeys?.actions ?? 'alt',
           choices: [{ value: 'shift', label: 'Shift' }, { value: 'ctrl', label: 'Ctrl' }, { value: 'alt', label: 'Alt' }],
-          onChange: (value) => {
-            const fileWheelKeys = { convert: config.fileWheelKeys?.convert ?? 'shift', tools: config.fileWheelKeys?.tools ?? 'ctrl', actions: value as 'shift' | 'ctrl' | 'alt' };
-            update('fileWheelKeys', fileWheelKeys);
-            window.electron?.setSettings?.({ fileWheelKeys, globalShortcut: config.globalShortcut });
-          },
+          onChange: (value) => assignFileWheelKey('actions', value as 'shift' | 'ctrl' | 'alt'),
         },
         {
           key: 'shortcut', group: 'Keyboard', title: 'Global shortcut',
@@ -719,7 +720,7 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
         },
       ],
     };
-  }, [config, gameMode, theme, apps, update, updateInfo, updateBusy, updateNote, isStoreBuild, runUpdateCheck, onReset, deleteWorkspace, reorderWorkspaces]);
+  }, [config, gameMode, theme, apps, update, updateInfo, updateBusy, updateNote, isStoreBuild, runUpdateCheck, onReset, deleteWorkspace, reorderWorkspaces, assignFileWheelKey]);
 
   const tr = (text?: string) => {
     if (!text) return '';
