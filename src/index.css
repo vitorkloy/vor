@@ -277,6 +277,14 @@
 .zs-group + .zs-group { margin-top: var(--zn-6); }
 /* Rótulo de grupo: distinto da descrição (11.5px/400) pelo peso, não por caixa alta nem tracking. */
 .zs-group-title { margin: 0 0 var(--zn-2); color: var(--zn-text-2); font-size: 12px; font-weight: 600; letter-spacing: -.005em; }
+.zs-fold {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  margin: 0 0 var(--zn-2); padding: 0; color: var(--zn-text-2);
+  font-size: 12px; font-weight: 600; letter-spacing: -.005em;
+  background: transparent; border: 0; cursor: pointer; text-align: left;
+}
+.zs-fold:hover { color: var(--zn-text); }
+.zs-fold svg { transition: transform .15s var(--zn-ease); }
 
 /* Composição contínua: os divisores separam, não caixas. */
 .zs-rows { border-top: 1px solid var(--zn-line); }

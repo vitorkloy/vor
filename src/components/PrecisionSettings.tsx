@@ -189,6 +189,8 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
   onReset,
 }) => {
   const [sectionId, setSectionId] = useState<SectionId>('general');
+  /** Uma secção do acordeão de cada vez. `null` = as duas fechadas. */
+  const [openFold, setOpenFold] = useState<string | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [editor, setEditor] = useState<Editor>(null);
   const [query, setQuery] = useState('');
@@ -522,6 +524,37 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
           kind: 'note',
         },
         {
+          key: 'shortcut', group: 'App wheel', title: 'Global shortcut',
+          description: 'Open the wheel over any application.',
+          kind: 'open', value: config.globalShortcut, onOpen: () => setEditor({ kind: 'shortcut' }),
+        },
+        {
+          key: 'mouse', group: 'App wheel', title: 'Mouse trigger',
+          description: 'Open VOR with a mouse button instead of the keyboard.',
+          kind: 'bool', enabled: config.enableMouseTrigger,
+          onToggle: () => update('enableMouseTrigger', !config.enableMouseTrigger),
+        },
+        {
+          key: 'mouseButton', group: 'App wheel', title: 'Trigger button',
+          description: 'Side buttons are usually free; left and right stay with Windows.',
+          kind: 'segmented', current: config.mouseTriggerButton ?? 'middle',
+          choices: [
+            { value: 'middle', label: 'Wheel' },
+            { value: 'x1', label: 'Back' },
+            { value: 'x2', label: 'Forward' },
+          ],
+          onChange: (value) => update('mouseTriggerButton', value as UIConfig['mouseTriggerButton']),
+        },
+        {
+          key: 'mouseMode', group: 'App wheel', title: 'Gesture behavior',
+          description: 'Click keeps the wheel open; hold runs the selection on release.',
+          kind: 'segmented', current: config.mouseTriggerMode ?? 'click',
+          choices: [{ value: 'click', label: 'Click' }, { value: 'hold', label: 'Hold' }],
+          onChange: (value) => update('mouseTriggerMode', value as UIConfig['mouseTriggerMode']),
+        },
+        range('threshold', 'App wheel', 'Activation zone', 'Cursor distance required to confirm a target.',
+          config.activationThreshold, 20, 120, (value) => update('activationThreshold', value), (value) => `${Math.round(value)} px`),
+        {
           key: 'file-wheel-note', group: 'File wheel', title: 'File wheel',
           description: 'Drag a file more than 12 px and hold Shift, Ctrl, or Alt. Those keys alone do not open the app wheel.',
           kind: 'note',
@@ -547,37 +580,6 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
           choices: [{ value: 'shift', label: 'Shift' }, { value: 'ctrl', label: 'Ctrl' }, { value: 'alt', label: 'Alt' }],
           onChange: (value) => assignFileWheelKey('actions', value as 'shift' | 'ctrl' | 'alt'),
         },
-        {
-          key: 'shortcut', group: 'Keyboard', title: 'Global shortcut',
-          description: 'Open the wheel over any application.',
-          kind: 'open', value: config.globalShortcut, onOpen: () => setEditor({ kind: 'shortcut' }),
-        },
-        {
-          key: 'mouse', group: 'Mouse', title: 'Mouse trigger',
-          description: 'Open VOR with a mouse button instead of the keyboard.',
-          kind: 'bool', enabled: config.enableMouseTrigger,
-          onToggle: () => update('enableMouseTrigger', !config.enableMouseTrigger),
-        },
-        {
-          key: 'mouseButton', group: 'Mouse', title: 'Trigger button',
-          description: 'Side buttons are usually free; left and right stay with Windows.',
-          kind: 'segmented', current: config.mouseTriggerButton ?? 'middle',
-          choices: [
-            { value: 'middle', label: 'Wheel' },
-            { value: 'x1', label: 'Back' },
-            { value: 'x2', label: 'Forward' },
-          ],
-          onChange: (value) => update('mouseTriggerButton', value as UIConfig['mouseTriggerButton']),
-        },
-        {
-          key: 'mouseMode', group: 'Mouse', title: 'Gesture behavior',
-          description: 'Click keeps the wheel open; hold runs the selection on release.',
-          kind: 'segmented', current: config.mouseTriggerMode ?? 'click',
-          choices: [{ value: 'click', label: 'Click' }, { value: 'hold', label: 'Hold' }],
-          onChange: (value) => update('mouseTriggerMode', value as UIConfig['mouseTriggerMode']),
-        },
-        range('threshold', 'Position', 'Activation zone', 'Cursor distance required to confirm a target.',
-          config.activationThreshold, 20, 120, (value) => update('activationThreshold', value), (value) => `${Math.round(value)} px`),
       ],
       appearance: [
         {
@@ -587,11 +589,11 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
           choices: [{ value: 'black', label: 'Black' }, { value: 'white', label: 'White' }],
           onChange: (value) => update('appearanceTheme', value as UIConfig['appearanceTheme']),
         },
-        range('radius', 'Wheel', 'Orbital radius', 'Perceived wheel diameter.',
+        range('radius', 'App wheel', 'Orbital radius', 'Perceived wheel diameter.',
           config.menuRadius, 90, 220, (value) => update('menuRadius', value), (value) => `${Math.round(value)} px`),
-        range('iconSize', 'Wheel', 'Icon size', 'Visual weight of each target.',
+        range('iconSize', 'App wheel', 'Icon size', 'Visual weight of each target.',
           config.iconSize, 36, 92, (value) => update('iconSize', value), (value) => `${Math.round(value)} px`),
-        range('spacing', 'Wheel', 'Target spacing', 'Free space between items.',
+        range('spacing', 'App wheel', 'Target spacing', 'Free space between items.',
           config.appSpacing ?? 10, 0, 40, (value) => update('appSpacing', value), (value) => `${Math.round(value)} px`),
         range('file-radius', 'File wheel', 'Orbital radius', 'Perceived wheel diameter.',
           config.fileWheelRadius ?? 140, 90, 220, (value) => update('fileWheelRadius', value), (value) => `${Math.round(value)} px`),
@@ -828,7 +830,7 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
                   type="button"
                   className={!trimmedQuery && sectionId === section.id ? 'is-active' : ''}
                   aria-current={!trimmedQuery && sectionId === section.id ? 'page' : undefined}
-                  onClick={() => { setSectionId(section.id); setQuery(''); }}
+                  onClick={() => { setSectionId(section.id); setQuery(''); setOpenFold(null); }}
                 >
                   <Icon size={15} strokeWidth={1.8} />
                   <span>{tr(section.label)}</span>
@@ -866,10 +868,27 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                 >
-                  {results.map((group) => (
+                  {results.map((group) => {
+                    const foldable = !trimmedQuery
+                      && (sectionId === 'trigger' || sectionId === 'appearance')
+                      && (group.name === 'App wheel' || group.name === 'File wheel');
+                    const expanded = !foldable || openFold === group.name;
+                    return (
                     <section className="zs-group" key={group.name}>
-                      <h2 className="zs-group-title">{tr(group.name)}</h2>
-                      {group.name === 'Your workspaces' && !trimmedQuery ? (
+                      {foldable ? (
+                        <button
+                          type="button"
+                          className="zs-fold"
+                          aria-expanded={expanded}
+                          onClick={() => setOpenFold(expanded ? null : group.name)}
+                        >
+                          <span>{tr(group.name)}</span>
+                          <ChevronDown size={14} strokeWidth={1.9} style={{ transform: expanded ? 'rotate(180deg)' : 'none' }} />
+                        </button>
+                      ) : (
+                        <h2 className="zs-group-title">{tr(group.name)}</h2>
+                      )}
+                      {expanded && (group.name === 'Your workspaces' && !trimmedQuery ? (
                         /** Fora da pesquisa a grelha manda; a procurar, as linhas continuam a dar resultados. */
                         <WorkspaceCards
                           workspaces={config.workspaces}
@@ -887,7 +906,8 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
                         </div>
                       )}
                     </section>
-                  ))}
+                    );
+                  })}
                 </motion.div>
               )}
             </div>
