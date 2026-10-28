@@ -11,6 +11,7 @@ import {
   ChevronRight,
   FilePlus2,
   FolderOpen,
+  Globe2,
   GripVertical,
   Loader2,
   AlertTriangle,
