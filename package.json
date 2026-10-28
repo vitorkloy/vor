@@ -1,15 +1,176 @@
 {
   "name": "vor",
   "private": true,
-  "version": "0.1.2",
-  "description": "VOR — Visual Operations Router (Tauri, marco 1)",
+  "version": "0.2.0",
+  "main": "backend/electron-main.js",
+  "author": "vitorkloy",
+  "description": "VOR — Visual Operations Router",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vitorkloy/vor.git"
+  },
   "scripts": {
-    "tauri": "tauri",
-    "dev": "tauri dev",
-    "build": "tauri build",
-    "check": "cargo check --manifest-path src-tauri/Cargo.toml"
+    "dev": "vite",
+    "build": "tsc && vite build && node scripts/verify-radial-windowing.mjs && node scripts/generate-win-icon.mjs && node scripts/generate-appx-assets.mjs",
+    "electron": "wait-on tcp:5173 && cross-env NODE_ENV=development node scripts/launch-electron.js",
+    "start": "node scripts/start-local-runtime.cjs",
+    "start:runtime": "concurrently -k \"npm run dev\" \"npm run electron\"",
+    "dist": "npm run build && node scripts/run-electron-builder.mjs",
+    "test:win32-launch": "node --test backend/win32-launch.test.cjs",
+    "test:persistence-shape": "node scripts/persistence-normalize-smoke.mjs",
+    "verify:radial-windowing": "node scripts/verify-radial-windowing.mjs",
+    "release": "node scripts/release.mjs",
+    "release:check": "node scripts/release.mjs --check",
+    "dist:store": "npm run build && node scripts/run-electron-builder.mjs --win appx --publish never",
+    "test:platform-unix": "node --test backend/platform-unix.test.cjs"
+  },
+  "dependencies": {
+    "@fontsource-variable/instrument-sans": "^5.3.0",
+    "@fontsource-variable/inter": "^5.2.8",
+    "@fontsource-variable/space-grotesk": "^5.2.10",
+    "@tailwindcss/vite": "^4.3.0",
+    "active-win": "^8.2.1",
+    "electron-updater": "^6.8.9",
+    "framer-motion": "^10.16.4",
+    "lucide-react": "^0.292.0",
+    "node-global-key-listener": "^0.1.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "sql.js": "^1.14.1",
+    "tailwindcss": "^4.3.0",
+    "uiohook-napi": "^1.5.5"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2"
-  }
+    "@types/react": "^18.2.37",
+    "@types/react-dom": "^18.2.15",
+    "@vitejs/plugin-react": "^6.0.5",
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
+    "electron": "^28.3.3",
+    "electron-builder": "^24.9.1",
+    "png-to-ico": "^3.0.1",
+    "rcedit": "^4.0.1",
+    "sharp": "^0.35.3",
+    "typescript": "^5.2.2",
+    "vite": "^8.2.1",
+    "wait-on": "^7.1.0"
+  },
+  "build": {
+    "appId": "com.vitorkloy.vor",
+    "productName": "VOR",
+    "icon": "build/icon.ico",
+    "files": [
+      "dist/**/*",
+      "backend/**/*",
+      "resources/bin/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "backend/*.ps1",
+      "resources/bin/**/*",
+      "node_modules/sql.js/dist/sql-wasm.wasm",
+      "node_modules/active-win/**/*",
+      "node_modules/uiohook-napi/**/*"
+    ],
+    "directories": {
+      "output": "build-out"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "vitorkloy",
+      "repo": "vor",
+      "releaseType": "release"
+    },
+    "afterPack": "./scripts/after-pack-win-icon.cjs",
+    "afterAllArtifactBuild": "./scripts/after-all-artifact-win-icon.cjs",
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "uninstallDisplayName": "VOR",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "installerSidebar": "build/installer-sidebar.bmp",
+      "uninstallerSidebar": "build/installer-sidebar.bmp",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "guid": "7c2a9e14-6b21-4d0a-9f33-000000000200",
+      "artifactName": "__x64-setup.",
+      "include": "nsis/installer.nsh",
+      "deleteAppDataOnUninstall": true
+    },
+    "appx": {
+      "identityName": "HenryCa.Rovyl",
+      "publisher": "CN=B2313BE4-E4A4-4805-A379-905ED98AD53F",
+      "publisherDisplayName": "HenryCa",
+      "applicationId": "Rovyl",
+      "displayName": "Rovyl",
+      "backgroundColor": "#101014",
+      "showNameOnTiles": false,
+      "languages": [
+        "en-US"
+      ]
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "public/icon.png",
+      "category": "public.app-category.productivity",
+      "identity": null,
+      "hardenedRuntime": false,
+      "artifactName": "${productName}-${version}-mac-${arch}.${ext}",
+      "extendInfo": {
+        "NSAppleEventsUsageDescription": "O Rovyl abre os aplicativos que você escolhe no menu radial."
+      }
+    },
+    "dmg": {
+      "artifactName": "${productName}-${version}-mac-${arch}.${ext}"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "public/icon.png",
+      "category": "Utility",
+      "maintainer": "vitorkloy <vitorkloy@users.noreply.github.com>",
+      "synopsis": "Radial launcher",
+      "artifactName": "${productName}-${version}-linux-${arch}.${ext}"
+    }
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "GPL-3.0-or-later"
 }

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>VOR</title>
+    <style>
+      html, body { margin: 0; width: 100%; height: 100%; background: transparent; overflow: hidden; user-select: none; }
+      .hub, .slice { position: absolute; left: 50%; top: 50%; }
+      .hub { width: 76px; height: 76px; transform: translate(-50%, -50%); border-radius: 50%; border: 0; background: rgba(6,7,9,.9); box-shadow: 0 8px 20px rgba(0,0,0,.5); }
+      .hub img { width: 42px; height: 42px; border-radius: 10px; }
+      .slice { width: 64px; height: 64px; margin: 0; border-radius: 18px; border: 1px solid rgba(255,255,255,.28); background: rgb(12,12,12); color: #fff; font: 550 11px "Segoe UI", sans-serif; box-shadow: 0 8px 22px rgba(0,0,0,.42); transform: translate(-50%, -50%); }
+      .slice:hover { background: #fff; color: #0a0a0b; }
+      .pill { position: absolute; left: 50%; top: calc(50% + 150px); transform: translateX(-50%); padding: 6px 12px; border-radius: 999px; background: rgba(4,5,7,.92); color: rgba(255,255,255,.7); border: 1px solid rgba(255,255,255,.14); font: 11px "Segoe UI", sans-serif; }
+    </style>
+  </head>
+  <body>
+    <button class="hub" id="hub" type="button"><img src="logo.svg" alt="" /></button>
+    <div id="slices"></div>
+    <div class="pill" id="pill"></div>
+    <script>
+      const q = new URLSearchParams(location.search);
+      const data = JSON.parse(decodeURIComponent(q.get("payload") || "%7B%7D"));
+      document.getElementById("pill").textContent = "VOR / " + (data.mode || "");
+      const root = document.getElementById("slices");
+      (data.items || []).forEach((item, i, all) => {
+        const angle = -Math.PI / 2 + (2 * Math.PI * i) / all.length;
+        const btn = document.createElement("button");
+        btn.className = "slice";
+        btn.textContent = item.title;
+        btn.style.transform = `translate(calc(-50% + ${Math.cos(angle) * 132}px), calc(-50% + ${Math.sin(angle) * 132}px))`;
+        btn.addEventListener("click", () => window.fileWheel.run(item.id, data.path).catch((err) => alert(String(err))));
+        root.append(btn);
+      });
+      document.getElementById("hub").addEventListener("click", () => window.close());
+    </script>
+  </body>
+</html>

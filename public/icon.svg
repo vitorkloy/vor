@@ -1,0 +1,12 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="116" fill="#171717"/>
+  <rect x="2" y="2" width="508" height="508" rx="114" stroke="#F4F2ED" stroke-opacity="0.12" stroke-width="4"/>
+  <mask id="rovyl-mark" maskUnits="userSpaceOnUse" x="48" y="48" width="416" height="416">
+    <rect x="48" y="48" width="416" height="416" fill="black"/>
+    <rect x="112" y="104" width="320" height="112" rx="50" transform="rotate(30 272 160)" fill="white"/>
+    <rect x="70" y="286" width="202" height="112" rx="48" transform="rotate(-30 171 342)" fill="white"/>
+    <rect x="267" y="286" width="202" height="112" rx="48" transform="rotate(58 368 342)" fill="white"/>
+    <circle cx="256" cy="256" r="54" fill="black"/>
+  </mask>
+  <rect x="48" y="48" width="416" height="416" fill="#F4F2ED" mask="url(#rovyl-mark)"/>
+</svg>

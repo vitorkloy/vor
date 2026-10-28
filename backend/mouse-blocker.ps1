@@ -1,0 +1,417 @@
+Add-Type -ReferencedAssemblies System.Windows.Forms -TypeDefinition @"
+using System;
+using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.Globalization;
+using System.Runtime.InteropServices;
+using System.Threading;
+using System.Windows.Forms;
+
+public static class ZenithRadialMouseBlocker {
+    private const int WH_MOUSE_LL = 14;
+    private const int WM_MOUSEMOVE = 0x0200;
+    private const int WM_LBUTTONDOWN = 0x0201;
+    private const int WM_LBUTTONUP = 0x0202;
+    private const int WM_LBUTTONDBLCLK = 0x0203;
+    private const int WM_RBUTTONDOWN = 0x0204;
+    private const int WM_RBUTTONUP = 0x0205;
+    private const int WM_RBUTTONDBLCLK = 0x0206;
+    private const int WM_MBUTTONDOWN = 0x0207;
+    private const int WM_MBUTTONUP = 0x0208;
+    private const int WM_MBUTTONDBLCLK = 0x0209;
+    private const int WM_MOUSEWHEEL = 0x020A;
+    private const int WM_XBUTTONDOWN = 0x020B;
+    private const int WM_XBUTTONUP = 0x020C;
+    private const int WM_XBUTTONDBLCLK = 0x020D;
+    private const int WM_MOUSEHWHEEL = 0x020E;
+
+    private const int MOUSEEVENTF_MIDDLEDOWN = 0x0020;
+    private const int MOUSEEVENTF_MIDDLEUP = 0x0040;
+    private const int MOUSEEVENTF_XDOWN = 0x0080;
+    private const int MOUSEEVENTF_XUP = 0x0100;
+
+    private const uint SYNCHRONIZE = 0x00100000;
+    private const uint INFINITE = 0xFFFFFFFF;
+
+    /** Assinatura dos eventos que nos proprios injetamos, para o hook nao os voltar a engolir. */
+    private const uint SYNTHETIC_TAG = 0x524F5659;
+
+    private delegate IntPtr LowLevelMouseProc(int nCode, IntPtr wParam, IntPtr lParam);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct POINT { public int x; public int y; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MSLLHOOKSTRUCT {
+        public POINT pt;
+        public uint mouseData;
+        public uint flags;
+        public uint time;
+        public UIntPtr dwExtraInfo;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MOUSEINPUT {
+        public int dx; public int dy; public uint mouseData; public uint dwFlags; public uint time; public UIntPtr dwExtraInfo;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct INPUT { public uint type; public MOUSEINPUT mi; }
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern IntPtr SetWindowsHookEx(int idHook, LowLevelMouseProc callback, IntPtr module, uint threadId);
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool UnhookWindowsHookEx(IntPtr hook);
+    [DllImport("user32.dll")]
+    private static extern IntPtr CallNextHookEx(IntPtr hook, int nCode, IntPtr wParam, IntPtr lParam);
+    [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    private static extern IntPtr GetModuleHandle(string moduleName);
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern uint SendInput(uint count, INPUT[] inputs, int size);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern IntPtr OpenProcess(uint access, bool inheritHandle, int processId);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern uint WaitForSingleObject(IntPtr handle, uint milliseconds);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool CloseHandle(IntPtr handle);
+
+    private static readonly ConcurrentQueue<string> Commands = new ConcurrentQueue<string>();
+    private static readonly ConcurrentQueue<int> Passthroughs = new ConcurrentQueue<int>();
+    private static readonly ConcurrentQueue<string> Outbound = new ConcurrentQueue<string>();
+    private static readonly AutoResetEvent OutboundSignal = new AutoResetEvent(false);
+    private static readonly LowLevelMouseProc Callback = HookCallback;
+    private static IntPtr Hook = IntPtr.Zero;
+    /**
+     * Handle do modulo, resolvido uma unica vez. `Process.MainModule` enumera os modulos do
+     * processo -- barato uma vez no arranque, caro a cada 2 s no `ReArmHook`, e nesta thread
+     * exatamente: e ela que serve o callback do hook, e um Tick lento e o que faz o Windows
+     * despejar o hook. O vigia nao pode ser a causa daquilo que existe para corrigir.
+     */
+    private static IntPtr ModuleHandle = IntPtr.Zero;
+    private static volatile bool Blocking;
+    private static int Left, Top, Right, Bottom;
+    private static int MonitorLeft, MonitorTop, MonitorRight, MonitorBottom;
+
+    /**
+     * Deslocamentos dos campos que o hook precisa de ler. `Marshal.PtrToStructure` encaixotava a
+     * MSLLHOOKSTRUCT inteira a CADA evento; com um rato de 1000 Hz isso e lixo para o GC no unico
+     * thread por onde passa todo o rato do sistema. Ler tres campos soltos nao aloca nada.
+     */
+    private static readonly int OffsetPoint = (int)Marshal.OffsetOf(typeof(MSLLHOOKSTRUCT), "pt");
+    private static readonly int OffsetMouseData = (int)Marshal.OffsetOf(typeof(MSLLHOOKSTRUCT), "mouseData");
+    private static readonly int OffsetExtraInfo = (int)Marshal.OffsetOf(typeof(MSLLHOOKSTRUCT), "dwExtraInfo");
+
+    /**
+     * Captura do botao de disparo.
+     *
+     * O detetor era um poller de `GetAsyncKeyState` noutro processo, que so OBSERVAVA o botao. O
+     * evento seguia intacto para a janela por baixo e, em qualquer superficie com scroll, o
+     * Windows entrava em autoscroll: mirar na roda arrastava a pagina atras dela.
+     *
+     * Um hook que devolve 1 engole o evento -- mas isso tambem esconde o botao do
+     * `GetAsyncKeyState`, portanto quem engole tem de ser tambem quem deteta.
+     */
+    private static volatile int TriggerButton;      // 0 = desligado, 4 = meio, 5 = X1, 6 = X2
+    private static volatile bool TriggerHoldMode;   // no modo "click" nunca ha clique a devolver
+    private static volatile int TriggerThreshold;   // px; abaixo disto o gesto nao mirou nada
+    private static int DownX, DownY;
+    private static long DownAt;
+
+    /** Uma pressao mais longa que isto foi intencao de abrir a roda, nao um clique. */
+    private const long PASSTHROUGH_MAX_MS = 250;
+
+    /**
+     * Escrever no stdout a partir do hook e um risco real: se o pai parar de ler, o pipe enche e o
+     * `Console.WriteLine` BLOQUEIA -- e o thread bloqueado e justamente o que serve o hook, ou seja,
+     * congela o rato de todo o sistema ate ao `LowLevelHooksTimeout`. Enfileirar e devolver e sempre
+     * O(1); um thread dedicado faz a escrita.
+     */
+    private static void Emit(string line) {
+        Outbound.Enqueue(line);
+        OutboundSignal.Set();
+    }
+
+    private static void DrainOutbound() {
+        string line;
+        while (Outbound.TryDequeue(out line)) {
+            Console.WriteLine(line);
+            Console.Out.Flush();
+        }
+    }
+
+    private static bool IsBlockedMessage(int message) {
+        return message == WM_LBUTTONDOWN || message == WM_LBUTTONUP || message == WM_LBUTTONDBLCLK ||
+               message == WM_RBUTTONDOWN || message == WM_RBUTTONUP || message == WM_RBUTTONDBLCLK ||
+               message == WM_MBUTTONDOWN || message == WM_MBUTTONUP || message == WM_MBUTTONDBLCLK ||
+               message == WM_XBUTTONDOWN || message == WM_XBUTTONUP || message == WM_XBUTTONDBLCLK ||
+               message == WM_MOUSEWHEEL || message == WM_MOUSEHWHEEL;
+    }
+
+    /** Qual botao de disparo esta mensagem representa, se algum. 0 = nenhum. */
+    private static int TriggerFor(int message, uint mouseData, out bool isDown) {
+        isDown = false;
+        if (message == WM_MBUTTONDOWN || message == WM_MBUTTONUP || message == WM_MBUTTONDBLCLK) {
+            isDown = (message != WM_MBUTTONUP);
+            return 4;
+        }
+        if (message == WM_XBUTTONDOWN || message == WM_XBUTTONUP || message == WM_XBUTTONDBLCLK) {
+            isDown = (message != WM_XBUTTONUP);
+            int which = (int)((mouseData >> 16) & 0xFFFF);
+            return which == 2 ? 6 : 5;
+        }
+        return 0;
+    }
+
+    private static IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam) {
+        if (nCode < 0) return CallNextHookEx(Hook, nCode, wParam, lParam);
+
+        int message = wParam.ToInt32();
+
+        /**
+         * Todo o rato do sistema passa por aqui, serializado. O WM_MOUSEMOVE e a esmagadora maioria
+         * dos eventos (um rato gaming de 1000 Hz gera mil por segundo) e NUNCA e acionavel: nao esta
+         * em `IsBlockedMessage` nem em `TriggerFor`. Sair antes de tocar no lParam poupa o
+         * marshalling em ~99% dos eventos.
+         */
+        if (message == WM_MOUSEMOVE) return CallNextHookEx(Hook, nCode, wParam, lParam);
+
+        int trigger = TriggerButton;
+        bool blocking = Blocking;
+        /** Sem gatilho armado nem bloqueio ativo nao ha decisao nenhuma a tomar. */
+        if (trigger == 0 && !blocking) return CallNextHookEx(Hook, nCode, wParam, lParam);
+
+        ulong extraInfo = IntPtr.Size == 8
+            ? (ulong)Marshal.ReadInt64(lParam, OffsetExtraInfo)
+            : (ulong)(uint)Marshal.ReadInt32(lParam, OffsetExtraInfo);
+
+        /** Os nossos proprios cliques devolvidos passam sem serem reinterpretados. */
+        if ((uint)extraInfo == SYNTHETIC_TAG) {
+            return CallNextHookEx(Hook, nCode, wParam, lParam);
+        }
+
+        int px = Marshal.ReadInt32(lParam, OffsetPoint);
+        int py = Marshal.ReadInt32(lParam, OffsetPoint + 4);
+
+        if (trigger != 0) {
+            bool isDown;
+            uint mouseData = (uint)Marshal.ReadInt32(lParam, OffsetMouseData);
+            int which = TriggerFor(message, mouseData, out isDown);
+            if (which == trigger) {
+                if (isDown) {
+                    DownX = px;
+                    DownY = py;
+                    DownAt = Environment.TickCount;
+                    Emit("TRIGGER_DOWN");
+                } else {
+                    Emit("TRIGGER_UP");
+                    /**
+                     * Clique curto e parado: o utilizador nao mirou nada, quis mesmo clicar com o
+                     * botao do meio. Devolvemos o clique a janela por baixo -- mas fora do hook,
+                     * porque injetar aqui reentraria nele.
+                     */
+                    int dx = px - DownX;
+                    int dy = py - DownY;
+                    long held = Environment.TickCount - DownAt;
+                    int threshold = TriggerThreshold;
+                    if (TriggerHoldMode && held <= PASSTHROUGH_MAX_MS &&
+                        (dx * dx + dy * dy) <= threshold * threshold) {
+                        Passthroughs.Enqueue(trigger);
+                    }
+                }
+                return new IntPtr(1);
+            }
+        }
+
+        if (blocking && IsBlockedMessage(message)) {
+            bool insideAllowed = px >= Left && px < Right && py >= Top && py < Bottom;
+            bool insideMonitor = px >= MonitorLeft && px < MonitorRight &&
+                                 py >= MonitorTop && py < MonitorBottom;
+            if (insideMonitor && !insideAllowed) return new IntPtr(1);
+        }
+
+        return CallNextHookEx(Hook, nCode, wParam, lParam);
+    }
+
+    /** Injeta o clique que engolimos, marcado para o hook o deixar passar. */
+    private static void SendPassthrough(int trigger) {
+        uint downFlag, upFlag, data;
+        if (trigger == 4) { downFlag = MOUSEEVENTF_MIDDLEDOWN; upFlag = MOUSEEVENTF_MIDDLEUP; data = 0; }
+        else { downFlag = MOUSEEVENTF_XDOWN; upFlag = MOUSEEVENTF_XUP; data = (uint)(trigger == 6 ? 2 : 1); }
+
+        var inputs = new INPUT[2];
+        inputs[0].type = 0;
+        inputs[0].mi = new MOUSEINPUT { dwFlags = downFlag, mouseData = data, dwExtraInfo = new UIntPtr(SYNTHETIC_TAG) };
+        inputs[1].type = 0;
+        inputs[1].mi = new MOUSEINPUT { dwFlags = upFlag, mouseData = data, dwExtraInfo = new UIntPtr(SYNTHETIC_TAG) };
+        SendInput(2, inputs, Marshal.SizeOf(typeof(INPUT)));
+    }
+
+    private static IntPtr EnsureModuleHandle() {
+        if (ModuleHandle != IntPtr.Zero) return ModuleHandle;
+        using (var process = Process.GetCurrentProcess())
+        using (var module = process.MainModule) {
+            ModuleHandle = GetModuleHandle(module.ModuleName);
+        }
+        return ModuleHandle;
+    }
+
+    private static void InstallHook() {
+        if (Hook != IntPtr.Zero) return;
+        Hook = SetWindowsHookEx(WH_MOUSE_LL, Callback, EnsureModuleHandle(), 0);
+    }
+
+    /**
+     * O Windows remove SILENCIOSAMENTE um hook WH_MOUSE_LL se o callback exceder o
+     * `LowLevelHooksTimeout` (por omissao ~300 ms) uma unica vez -- p.ex. um pico de carga do
+     * sistema. O nosso `Hook` continua nao-nulo, portanto `InstallHook` nunca o reinstala e o
+     * gatilho fica morto ate reiniciar a app. Reinstalar periodicamente e barato (SetWindowsHookEx
+     * custa microssegundos) e garante recuperacao automatica sem sondagem nem trabalho no thread.
+     * Instala o novo ANTES de largar o antigo para nunca haver um intervalo sem hook.
+     */
+    private static void ReArmHook() {
+        if (TriggerButton == 0 && !Blocking) return;
+        IntPtr fresh = SetWindowsHookEx(WH_MOUSE_LL, Callback, EnsureModuleHandle(), 0);
+        if (fresh == IntPtr.Zero) return; // reinstalacao falhou: mantem o hook atual
+        IntPtr old = Hook;
+        Hook = fresh;
+        if (old != IntPtr.Zero && old != fresh) UnhookWindowsHookEx(old);
+    }
+
+    /** O hook fica enquanto houver motivo: bloqueio do radial OU captura do botao de disparo. */
+    private static void ReleaseHookIfIdle() {
+        if (Blocking || TriggerButton != 0) return;
+        if (Hook != IntPtr.Zero) {
+            UnhookWindowsHookEx(Hook);
+            Hook = IntPtr.Zero;
+        }
+    }
+
+    private static void DisableBlocking() {
+        Blocking = false;
+        ReleaseHookIfIdle();
+    }
+
+    private static void Apply(string command, ApplicationContext context) {
+        var parts = command.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0) return;
+
+        if (parts.Length == 9 && parts[0] == "BLOCK") {
+            int x, y, width, height, monitorX, monitorY, monitorWidth, monitorHeight;
+            if (int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out x) &&
+                int.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out y) &&
+                int.TryParse(parts[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out width) &&
+                int.TryParse(parts[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out height) &&
+                int.TryParse(parts[5], NumberStyles.Integer, CultureInfo.InvariantCulture, out monitorX) &&
+                int.TryParse(parts[6], NumberStyles.Integer, CultureInfo.InvariantCulture, out monitorY) &&
+                int.TryParse(parts[7], NumberStyles.Integer, CultureInfo.InvariantCulture, out monitorWidth) &&
+                int.TryParse(parts[8], NumberStyles.Integer, CultureInfo.InvariantCulture, out monitorHeight)) {
+                Left = x; Top = y; Right = x + width; Bottom = y + height;
+                MonitorLeft = monitorX; MonitorTop = monitorY;
+                MonitorRight = monitorX + monitorWidth; MonitorBottom = monitorY + monitorHeight;
+                InstallHook();
+                Blocking = Hook != IntPtr.Zero;
+            }
+        } else if (parts[0] == "UNBLOCK") {
+            DisableBlocking();
+        } else if (parts[0] == "TRIGGER") {
+            // TRIGGER <vk 4|5|6> <hold|click> <threshold px>   |   TRIGGER OFF
+            if (parts.Length >= 2 && parts[1] == "OFF") {
+                TriggerButton = 0;
+                ReleaseHookIfIdle();
+                Emit("TRIGGER_OFF");
+                return;
+            }
+            int vk, threshold;
+            if (parts.Length == 4 &&
+                int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out vk) &&
+                int.TryParse(parts[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out threshold)) {
+                if (vk != 4 && vk != 5 && vk != 6) vk = 4;
+                TriggerHoldMode = parts[2] != "click";
+                TriggerThreshold = threshold > 0 ? threshold : 0;
+                InstallHook();
+                TriggerButton = Hook != IntPtr.Zero ? vk : 0;
+                Emit(TriggerButton != 0 ? "TRIGGER_READY" : "TRIGGER_FAILED");
+            }
+        } else if (parts[0] == "EXIT") {
+            TriggerButton = 0;
+            DisableBlocking();
+            context.ExitThread();
+        }
+    }
+
+    public static void Run(int parentPid) {
+        var context = new ApplicationContext();
+
+        var output = new Thread(() => {
+            while (true) {
+                OutboundSignal.WaitOne();
+                DrainOutbound();
+            }
+        });
+        output.IsBackground = true;
+        output.Start();
+
+        var input = new Thread(() => {
+            string line;
+            while ((line = Console.ReadLine()) != null) Commands.Enqueue(line);
+            Commands.Enqueue("EXIT");
+        });
+        input.IsBackground = true;
+        input.Start();
+
+        /**
+         * Vigia do pai SEM sondagem.
+         *
+         * O tick do timer chamava `Process.GetProcessById(parentPid)`. No Windows PowerShell
+         * (.NET Framework) essa chamada tira um retrato de TODA a tabela de processos: medidos
+         * ~12 ms com 350 processos -- num timer de 15 ms, ou seja, 80% do tempo ocupado. E o timer
+         * corre no MESMO thread que serve o hook WH_MOUSE_LL, por onde o Windows serializa todo o
+         * rato do sistema. Resultado: o ecra inteiro engasgava, nao so o radial.
+         *
+         * Um handle SYNCHRONIZE mais `WaitForSingleObject` deteta a morte do pai instantaneamente e
+         * nao custa absolutamente nada enquanto ele estiver vivo.
+         */
+        var parentWatch = new Thread(() => {
+            IntPtr handle = OpenProcess(SYNCHRONIZE, false, parentPid);
+            /** Se o handle falhar, o EOF do stdin continua a ser a rede de seguranca. */
+            if (handle == IntPtr.Zero) return;
+            WaitForSingleObject(handle, INFINITE);
+            CloseHandle(handle);
+            Commands.Enqueue("EXIT");
+        });
+        parentWatch.IsBackground = true;
+        parentWatch.Start();
+
+        /** So esvaziar filas: microssegundos por tick, ao contrario do retrato de processos. */
+        var timer = new System.Windows.Forms.Timer();
+        timer.Interval = 15;
+        timer.Tick += (sender, args) => {
+            string command;
+            while (Commands.TryDequeue(out command)) Apply(command, context);
+            int passthrough;
+            while (Passthroughs.TryDequeue(out passthrough)) SendPassthrough(passthrough);
+        };
+        timer.Start();
+
+        /**
+         * Vigia de recuperacao do hook: reinstala periodicamente enquanto o gatilho/bloqueio estiver
+         * ativo, para o caso de o Windows ter evictado o hook por timeout. Intervalo folgado (2 s) e
+         * so reinstala quando ha motivo, portanto nao pesa nada em repouso.
+         */
+        var rearmTimer = new System.Windows.Forms.Timer();
+        rearmTimer.Interval = 2000;
+        rearmTimer.Tick += (sender, args) => { ReArmHook(); };
+        rearmTimer.Start();
+
+        Emit("READY");
+        Application.Run(context);
+        rearmTimer.Stop();
+        timer.Stop();
+        TriggerButton = 0;
+        DisableBlocking();
+        DrainOutbound();
+    }
+}
+"@
+
+[ZenithRadialMouseBlocker]::Run([int]$args[0])
