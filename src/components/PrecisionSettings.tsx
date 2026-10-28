@@ -287,6 +287,15 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
     [setConfig],
   );
 
+  useEffect(() => {
+    const keys = config.fileWheelKeys;
+    if (!keys) return;
+    if (new Set([keys.convert, keys.tools, keys.actions]).size === 3) return;
+    const fileWheelKeys = { convert: 'shift' as const, tools: 'ctrl' as const, actions: 'alt' as const };
+    update('fileWheelKeys', fileWheelKeys);
+    window.electron?.setSettings?.({ fileWheelKeys, globalShortcut: config.globalShortcut });
+  }, [config.fileWheelKeys, config.globalShortcut, update]);
+
   const gameMode = config.gameMode ?? {
     enabled: false,
     mode: 'list' as const,
