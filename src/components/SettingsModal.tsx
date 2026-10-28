@@ -3091,7 +3091,7 @@ const UserTab = React.memo(({
                             <div className="min-w-0 flex-1 text-center sm:text-left">
                                 <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                                     <h4 className="text-lg font-semibold tracking-tight text-white/95">
-                                        {user?.name || 'Rovyl User'}
+                                        {user?.name || 'VOR User'}
                                     </h4>
                                     {user?.isAdmin ? (
                                         <span className="rounded-md border border-red-500/20 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-400">
@@ -3573,7 +3573,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         try {
             const result = await window.electron.importConfig();
             if (result.success) {
-                setStatus({ type: 'success', message: getTranslation(config, 'user.import_success') || 'Backup imported successfully. Rovyl will relaunch...' });
+                setStatus({ type: 'success', message: getTranslation(config, 'user.import_success') || 'Backup imported successfully. VOR will relaunch...' });
             } else if (result.error) {
                 setStatus({ type: 'error', message: result.error });
             }
@@ -4621,7 +4621,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                                     <RovylLogo size={18} />
                                                 </div>
                                                 <div className="flex flex-col">
-                                                    <h2 className="text-[12px] font-bold text-white tracking-[0.1em] uppercase group-hover/logo:text-white transition-colors">Rovyl</h2>
+                                                    <h2 className="text-[12px] font-bold text-white tracking-[0.1em] uppercase group-hover/logo:text-white transition-colors">VOR</h2>
                                                     <span className="text-[8px] text-white/30 font-black tracking-widest uppercase group-hover/logo:text-white/50 transition-colors">Kernel Settings</span>
                                                 </div>
                                             </motion.div>

@@ -15,8 +15,12 @@ const pngPath = join(root, "public", "icon.png");
 const outDir = join(root, "build");
 const icoPath = join(outDir, "icon.ico");
 
+const sizes = [16, 24, 32, 48, 64, 128, 256, 512];
 if (existsSync(logoPath)) {
-  await sharp(logoPath).resize(512, 512).png().toFile(pngPath);
+  for (const size of sizes) {
+    const dest = size === 512 ? pngPath : join(root, "public", `icon-${size}.png`);
+    await sharp(logoPath).resize(size, size).png().toFile(dest);
+  }
   console.log(`generate-win-icon: rasterized ${logoPath}`);
 }
 
@@ -26,5 +30,6 @@ if (!existsSync(pngPath)) {
 }
 
 mkdirSync(outDir, { recursive: true });
-await writeFile(icoPath, await pngToIco(pngPath));
+const icoInputs = [16, 32, 48, 256].map((size) => join(root, "public", size === 512 ? "icon.png" : `icon-${size}.png`));
+await writeFile(icoPath, await pngToIco(icoInputs));
 console.log(`generate-win-icon: wrote ${icoPath}`);

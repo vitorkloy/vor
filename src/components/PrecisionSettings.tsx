@@ -96,7 +96,7 @@ interface SettingItem {
  * Monocromáticos — a cor fica reservada ao que é ação ou estado, nunca à navegação.
  */
 const SECTIONS: Array<{ id: SectionId; label: string; caption: string; icon: LucideIcon }> = [
-  { id: 'general', label: 'General', caption: 'Core Rovyl behavior.', icon: Settings },
+  { id: 'general', label: 'General', caption: 'Core VOR behavior.', icon: Settings },
   { id: 'trigger', label: 'Activation', caption: 'How and where the wheel appears.', icon: Mouse },
   { id: 'appearance', label: 'Appearance', caption: 'Shape, presence, and theme.', icon: Palette },
   { id: 'spaces', label: 'Workspaces', caption: 'Contexts and their shortcuts.', icon: SquareStack },
@@ -400,7 +400,7 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
       general: [
         {
           key: 'openAtLogin', group: 'Startup', title: 'Start with Windows',
-          description: 'Rovyl is ready as soon as you sign in to Windows.',
+          description: 'VOR is ready as soon as you sign in to Windows.',
           kind: 'bool', enabled: Boolean(config.openAtLogin),
           onToggle: () => {
             const next = !config.openAtLogin;
@@ -424,7 +424,7 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
         },
         {
           key: 'mouse', group: 'Mouse', title: 'Mouse trigger',
-          description: 'Open Rovyl with a mouse button instead of the keyboard.',
+          description: 'Open VOR with a mouse button instead of the keyboard.',
           kind: 'bool', enabled: config.enableMouseTrigger,
           onToggle: () => update('enableMouseTrigger', !config.enableMouseTrigger),
         },
@@ -451,7 +451,7 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
       ],
       appearance: [
         {
-          key: 'theme', group: 'Theme', title: 'Rovyl surfaces',
+          key: 'theme', group: 'Theme', title: 'VOR surfaces',
           description: 'Applies to the window and title bar. The wheel remains dark.',
           kind: 'segmented', current: theme,
           choices: [{ value: 'black', label: 'Black' }, { value: 'white', label: 'White' }],
@@ -521,7 +521,7 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
               key: 'update-ready',
               group: 'Updates',
               title: `Version ${updateInfo.version ?? ''} is ready`.replace(/\s+/g, ' ').trim(),
-              description: 'Downloaded and verified. Rovyl restarts to finish.',
+              description: 'Downloaded and verified. VOR restarts to finish.',
               kind: 'action' as const,
               actionLabel: 'Restart now',
               actionIcon: ArrowUpFromLine,
@@ -538,7 +538,7 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
                 updateNote ??
                 (updateInfo.state === 'downloading'
                   ? `Downloading version ${updateInfo.version ?? ''}…`.replace(/\s+/g, ' ')
-                  : 'Rovyl checks automatically a few seconds after launch.'),
+                  : 'VOR checks automatically a few seconds after launch.'),
               kind: 'action' as const,
               actionLabel: updateBusy ? 'Checking…' : 'Check now',
               actionIcon: ArrowDownToLine,
@@ -632,7 +632,7 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: reduceMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
-        aria-label="Rovyl Settings"
+        aria-label="VOR Settings"
       >
         <aside className="zs-sidebar">
           <div className="zs-sidebar-head">
@@ -674,7 +674,7 @@ export const PrecisionSettings: React.FC<PrecisionSettingsProps> = ({
           </nav>
 
           <div className="zs-sidebar-foot">
-            <b>Rovyl</b>
+            <b>VOR</b>
             {appVersion && <span>{appVersion}</span>}
           </div>
         </aside>
@@ -1127,7 +1127,7 @@ function SettingsEditor({
 
   if (editor.kind === 'blocked') {
     title = 'Protected applications';
-    description = 'Choose installed applications; Rovyl handles process matching automatically.';
+    description = 'Choose installed applications; VOR handles process matching automatically.';
     content = (
       <ProtectedAppsManager
         value={gameMode.blockedApps}

@@ -179,7 +179,7 @@ function ensureUnifiedUserDataDirectory() {
 
   try {
     const appData = app.getPath("appData");
-    const unifiedDir = path.join(appData, "Rovyl");
+    const unifiedDir = path.join(appData, "VOR");
     const unifiedCfg = path.join(unifiedDir, "config-v2.json");
     const legacyDirs = [
       path.join(appData, "Zenith OS"),
@@ -206,7 +206,7 @@ function ensureUnifiedUserDataDirectory() {
         if (fs.existsSync(src) && !fs.existsSync(dst)) {
           try {
             fs.copyFileSync(src, dst);
-            diagLog(`[Persist] Migrated legacy profile ${f} → Rovyl userData`);
+            diagLog(`[Persist] Migrated legacy profile ${f} → VOR userData`);
           } catch (e) {
             diagLog(`[Persist] Migrate ${f} failed: ${e.message}`);
           }
@@ -215,7 +215,7 @@ function ensureUnifiedUserDataDirectory() {
     }
 
     app.setPath("userData", unifiedDir);
-    diagLog(`[Persist] Rovyl userData: ${unifiedDir}`);
+    diagLog(`[Persist] VOR userData: ${unifiedDir}`);
   } catch (e) {
     console.error("ensureUnifiedUserDataDirectory:", e.message);
   }
@@ -559,7 +559,7 @@ async function loadRecentlyOpenedPathsFromVscdb(vscdbPath) {
   }
 }
 
-diagLog("Rovyl Main Process Started");
+diagLog("VOR Main Process Started");
 
 /**
  * Ctrl+C no terminal envia SIGINT ao processo Node/Electron. Sem este handler, o processo
@@ -2809,8 +2809,8 @@ function showUpdateToast(version) {
   try {
     if (!UpdateNotification.isSupported()) return;
     const toast = new UpdateNotification({
-      title: "Nova versão do Rovyl",
-      body: `A versão ${version} está disponível. Clique para atualizar agora (ou ela instala ao fechar o Rovyl).`,
+      title: "Nova versão do VOR",
+      body: `A versão ${version} está disponível. Clique para atualizar agora (ou ela instala ao fechar o VOR).`,
     });
     if (!canSelfInstallUpdate()) {
       toast.body = `A versão ${version} está disponível. Clique para abrir a página de download.`;
@@ -3430,7 +3430,7 @@ app.whenReady().then(async () => {
 
   ipcMain.handle("export-config", async () => {
     const result = await dialog.showSaveDialog(mainWindow, {
-      title: "Export Rovyl Backup",
+      title: "Export VOR Backup",
       defaultPath: path.join(app.getPath("downloads"), "rovyl-backup.json"),
       filters: [{ name: "JSON", extensions: ["json"] }],
     });
@@ -3462,7 +3462,7 @@ app.whenReady().then(async () => {
 
   ipcMain.handle("import-config", async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
-      title: "Import Rovyl Backup",
+      title: "Import VOR Backup",
       filters: [{ name: "JSON", extensions: ["json"] }],
       properties: ["openFile"],
     });
@@ -3804,7 +3804,7 @@ app.whenReady().then(async () => {
     tray.setContextMenu(contextMenu);
 
     // Feedback de início
-    console.log("Rovyl started successfully in the background.");
+    console.log("VOR started successfully in the background.");
   } catch (err) {
     console.error("Failed to create tray icon:", err);
   }
@@ -3825,7 +3825,7 @@ app.whenReady().then(async () => {
   const altZOverlayHint = (shortcutStr) => {
     const k = shortcutCompactKey(shortcutStr);
     if (k === "alt+z" || k === "option+z") {
-      return " Alt+Z is commonly reserved by the NVIDIA GeForce Experience overlay or another app. Disable it there or choose a different shortcut in Rovyl Settings.";
+      return " Alt+Z is commonly reserved by the NVIDIA GeForce Experience overlay or another app. Disable it there or choose a different shortcut in VOR Settings.";
     }
     return "";
   };
@@ -4088,7 +4088,7 @@ app.whenReady().then(async () => {
 
   /** Windows: run NSIS uninstaller from registry, or open Apps settings; dev → Apps; macOS: reveal .app in Finder. */
   ipcMain.handle("open-system-uninstall", async () => {
-    const displayName = "Rovyl";
+    const displayName = "VOR";
     try {
       if (process.platform === "win32") {
         if (isDev) {
@@ -4294,7 +4294,7 @@ app.whenReady().then(async () => {
     const endpoint = process.env.ROVYL_LICENSE_API_URL || "https://rovyl-red.vercel.app/api/license/activate";
     const response = await fetch(endpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "User-Agent": `Rovyl/${app.getVersion()}` },
+      headers: { "Content-Type": "application/json", "User-Agent": `VOR/${app.getVersion()}` },
       body: JSON.stringify({
         idToken,
         deviceId: getOrCreateLicenseDeviceId(),
@@ -4303,7 +4303,7 @@ app.whenReady().then(async () => {
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok || result.licensed !== true) {
-      const error = new Error(result.error || "Rovyl purchase could not be verified.");
+      const error = new Error(result.error || "VOR purchase could not be verified.");
       error.code = result.code || "LICENSE_DENIED";
       throw error;
     }
@@ -4314,7 +4314,7 @@ app.whenReady().then(async () => {
     const endpoint = process.env.ROVYL_LICENSE_KEY_API_URL || "https://rovyl-red.vercel.app/api/license/activate-key";
     const response = await fetch(endpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "User-Agent": `Rovyl/${app.getVersion()}` },
+      headers: { "Content-Type": "application/json", "User-Agent": `VOR/${app.getVersion()}` },
       body: JSON.stringify({
         licenseKey,
         deviceId: getOrCreateLicenseDeviceId(),
@@ -4323,7 +4323,7 @@ app.whenReady().then(async () => {
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok || result.licensed !== true) {
-      const error = new Error(result.error || "This Rovyl license could not be activated.");
+      const error = new Error(result.error || "This VOR license could not be activated.");
       error.code = result.code || "LICENSE_DENIED";
       throw error;
     }
@@ -4344,7 +4344,7 @@ app.whenReady().then(async () => {
       "https://rovyl-red.vercel.app/api/license/deactivate";
     const response = await fetch(endpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "User-Agent": `Rovyl/${app.getVersion()}` },
+      headers: { "Content-Type": "application/json", "User-Agent": `VOR/${app.getVersion()}` },
       body: JSON.stringify({ deviceId: getOrCreateLicenseDeviceId() }),
     });
     if (response.status === 404) {
@@ -4405,7 +4405,7 @@ app.whenReady().then(async () => {
       return {
         ok: true,
         license: {
-          name: "Rovyl Dev",
+          name: "VOR Dev",
           email: "dev@rovyl.app",
           isPremium: true,
           isAdmin: true,
@@ -4440,7 +4440,7 @@ app.whenReady().then(async () => {
   function sendZenithAuthSuccessHtml(res) {
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     res.end(`<!DOCTYPE html>
-<html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Rovyl — signed in</title>
+<html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>VOR — signed in</title>
 <style>
   *{box-sizing:border-box}
   body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#0a0a0a;color:#e8e8e8;-webkit-font-smoothing:antialiased}
@@ -4463,8 +4463,8 @@ app.whenReady().then(async () => {
     <div class="card-inner">
       <div class="strip" aria-hidden="true"></div>
       <div class="icon-wrap" aria-hidden="true"><div class="icon-in"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div></div>
-      <h1>Signed in to Rovyl</h1>
-      <p>This page finished linking your account. Return to the Rovyl window &mdash; it should already be signed in.</p>
+      <h1>Signed in to VOR</h1>
+      <p>This page finished linking your account. Return to the VOR window &mdash; it should already be signed in.</p>
       <p class="sub">You can close this tab.</p>
     </div>
   </div>
@@ -4501,8 +4501,8 @@ app.whenReady().then(async () => {
       const msg =
         "Google sign-in needs an OAuth client ID. Add GOOGLE_WEB_CLIENT_ID (same as the website / VITE_GOOGLE_CLIENT_ID) or GOOGLE_CLIENT_ID to .env.local in:\n\n" +
         (userDataHint || "AppData") +
-        "\n\nThen restart Rovyl.";
-      dialog.showErrorBox("Rovyl — Google sign-in", msg);
+        "\n\nThen restart VOR.";
+      dialog.showErrorBox("VOR — Google sign-in", msg);
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send("google-auth-error", {
           code: "MISSING_OAUTH_CONFIG",
@@ -4560,9 +4560,9 @@ app.whenReady().then(async () => {
             if (mainWindow && !mainWindow.isDestroyed()) {
               mainWindow.webContents.send("google-auth-error", { code: e.code || "LICENSE_DENIED", message: e.message });
             }
-            dialog.showErrorBox("Rovyl — license required", e.message);
+            dialog.showErrorBox("VOR — license required", e.message);
             res.writeHead(e.code === "PURCHASE_REQUIRED" ? 403 : 400, { "Content-Type": "text/plain; charset=utf-8" });
-            res.end(e.code === "PURCHASE_REQUIRED" ? "No Rovyl purchase was found for this Google account." : "Could not verify your Rovyl license.");
+            res.end(e.code === "PURCHASE_REQUIRED" ? "No VOR purchase was found for this Google account." : "Could not verify your VOR license.");
           });
         return;
       }
@@ -4632,9 +4632,9 @@ app.whenReady().then(async () => {
                               sendZenithAuthSuccessHtml(res);
                             } catch (e) {
                               diagLog(`[Auth] Legacy license failed (${e.code || "LICENSE_DENIED"}): ${e.message}`);
-                              dialog.showErrorBox("Rovyl — license required", e.message);
+                              dialog.showErrorBox("VOR — license required", e.message);
                               res.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" });
-                              res.end("No active Rovyl license was found for this account.");
+                              res.end("No active VOR license was found for this account.");
                             }
                             
                             if (authServer) {
@@ -4668,9 +4668,9 @@ app.whenReady().then(async () => {
       diagLog(`[Auth] HTTP server error: ${err.code || ""} ${err.message}`);
       const detail =
         err.code === "EADDRINUSE"
-          ? "Port 3892 is already in use. Close another Rovyl instance or any app using that port, then try again."
+          ? "Port 3892 is already in use. Close another VOR instance or any app using that port, then try again."
           : err.message;
-      dialog.showErrorBox("Rovyl — Google sign-in", detail);
+      dialog.showErrorBox("VOR — Google sign-in", detail);
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send("google-auth-error", {
           code: err.code,
@@ -6929,7 +6929,7 @@ function fetchUrlBodyBuffer(targetUrl, maxBytes = 524288, redirectDepth = 0) {
       {
         headers: {
           "User-Agent":
-            "Mozilla/5.0 (compatible; Rovyl/1.0; +https://github.com)",
+            "Mozilla/5.0 (compatible; VOR/1.0; +https://github.com)",
           Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
         },
         timeout: 12000,

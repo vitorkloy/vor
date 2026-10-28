@@ -1746,8 +1746,8 @@ const RadialMenuInner: React.FC<RadialMenuProps> = ({
                   boxShadow: '0 0 0 1px rgba(0,0,0,0.45)',
                 }}
               >
-                {/* Inside a workspace its name is enough — "Rovyl" identifies the root. */}
-                {(isRoot ? ['Rovyl'] : folderStack.map((level) => level.label)).map((label, i) => (
+                {/* Inside a workspace its name is enough — "VOR" identifies the root. */}
+                {(isRoot ? ['VOR'] : folderStack.map((level) => level.label)).map((label, i) => (
                   <React.Fragment key={`${label}-${i}`}>
                     {i > 0 && <span className="text-[11px] leading-none text-white/25">/</span>}
                     <span

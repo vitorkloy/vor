@@ -1,7 +1,7 @@
 {
   "name": "vor",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "main": "backend/electron-main.js",
   "author": "vitorkloy",
   "description": "VOR — Visual Operations Router",
@@ -11,7 +11,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && node scripts/verify-radial-windowing.mjs && node scripts/generate-win-icon.mjs && node scripts/generate-appx-assets.mjs",
+    "build": "tsc && node scripts/generate-win-icon.mjs && vite build && node scripts/verify-radial-windowing.mjs && node scripts/generate-appx-assets.mjs",
     "electron": "wait-on tcp:5173 && cross-env NODE_ENV=development node scripts/launch-electron.js",
     "start": "node scripts/start-local-runtime.cjs",
     "start:runtime": "concurrently -k \"npm run dev\" \"npm run electron\"",
@@ -102,16 +102,16 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "guid": "7c2a9e14-6b21-4d0a-9f33-000000000200",
-      "artifactName": "VOR_0.2.0_x64-setup.${ext}",
+      "artifactName": "VOR_0.2.1_x64-setup.${ext}",
       "include": "nsis/installer.nsh",
       "deleteAppDataOnUninstall": true
     },
     "appx": {
-      "identityName": "HenryCa.Rovyl",
+      "identityName": "HenryCa.VOR",
       "publisher": "CN=B2313BE4-E4A4-4805-A379-905ED98AD53F",
       "publisherDisplayName": "HenryCa",
-      "applicationId": "Rovyl",
-      "displayName": "Rovyl",
+      "applicationId": "VOR",
+      "displayName": "VOR",
       "backgroundColor": "#101014",
       "showNameOnTiles": false,
       "languages": [
@@ -141,7 +141,7 @@
       "hardenedRuntime": false,
       "artifactName": "${productName}-${version}-mac-${arch}.${ext}",
       "extendInfo": {
-        "NSAppleEventsUsageDescription": "O Rovyl abre os aplicativos que você escolhe no menu radial."
+        "NSAppleEventsUsageDescription": "O VOR abre os aplicativos que você escolhe no menu radial."
       }
     },
     "dmg": {
