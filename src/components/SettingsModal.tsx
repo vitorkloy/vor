@@ -20,6 +20,7 @@ import {
 import { RovylLogo } from './RovylLogo';
 import { IconPicker } from './IconPicker';
 import { getTranslation, LANGUAGES } from '../translations';
+import appPackage from '../../package.json';
 import { Tooltip } from './Tooltip';
 import { resolveWebsiteIconFields, websiteIconFieldsFromUrl } from '../siteFavicon';
 import { normalizeWindowsExecutablePickerPath } from '../utils/windowsLaunchCommand';
@@ -2419,7 +2420,7 @@ const AboutTab = ({ config }: { config: UIConfig }) => {
             <RovylLogo size={72} />
             <h2 className="text-white text-2xl font-semibold">VOR</h2>
             <p className="text-white/70 text-[15px]">{t('about.body')}</p>
-            <p className="text-white/40 text-[13px]">0.2.4</p>
+            <p className="text-white/40 text-[13px]">{appPackage.version}</p>
         </motion.div>
     );
 };
@@ -4684,6 +4685,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         onMouseEnter={() => setIsHoveringSidebar(true)}
                         onMouseLeave={() => setIsHoveringSidebar(false)}
                     >
+                        <div className="shrink-0 px-3 pb-2 flex flex-col gap-2">
+                            <div className="flex gap-1">
+                                <button
+                                    type="button"
+                                    onClick={() => setConfig({ ...config, language: 'en' })}
+                                    className={`flex-1 rounded-lg py-1.5 text-[11px] font-semibold ${config.language === 'en' ? 'bg-white text-black' : 'bg-white/5 text-white/60'}`}
+                                >
+                                    EN
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setConfig({ ...config, language: 'pt' })}
+                                    className={`flex-1 rounded-lg py-1.5 text-[11px] font-semibold ${config.language === 'pt' ? 'bg-white text-black' : 'bg-white/5 text-white/60'}`}
+                                >
+                                    PT-BR
+                                </button>
+                            </div>
+                            <NavButton tab="files" label={getTranslation(config, 'files.title')} icon={FolderInput} isSidebarExpanded={isCompact ? false : isSidebarExpanded} activeTab={activeTab} setActiveTab={setActiveTab} isCompact={isCompact} />
+                        </div>
                         <div className="flex shrink-0 flex-col gap-1.5 px-4 pb-3">
                         {!isCompact && (
                             <motion.div
@@ -4787,7 +4807,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             <NavButton tab="widgets" label={getTranslation(config, 'sidebar.hud')} icon={Clock} isSidebarExpanded={isCompact ? false : isSidebarExpanded} activeTab={activeTab} setActiveTab={setActiveTab} isCompact={isCompact} />
                             <NavButton tab="gamemode" label={getTranslation(config, 'sidebar.gamemode')} icon={Shield} isSidebarExpanded={isCompact ? false : isSidebarExpanded} activeTab={activeTab} setActiveTab={setActiveTab} isCompact={isCompact} />
                             <NavButton tab="user" label={getTranslation(config, 'sidebar.profile')} icon={User} isSidebarExpanded={isCompact ? false : isSidebarExpanded} activeTab={activeTab} setActiveTab={setActiveTab} isCompact={isCompact} />
-                            <NavButton tab="files" label={getTranslation(config, 'files.title')} icon={FolderInput} isSidebarExpanded={isCompact ? false : isSidebarExpanded} activeTab={activeTab} setActiveTab={setActiveTab} isCompact={isCompact} />
                             <NavButton tab="about" label={getTranslation(config, 'about.title')} icon={Info} isSidebarExpanded={isCompact ? false : isSidebarExpanded} activeTab={activeTab} setActiveTab={setActiveTab} isCompact={isCompact} />
                         </div>
                         </div>
@@ -4942,18 +4961,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                     {/* Content */}
                     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#0D0D0D]">
-                        <div className="absolute top-4 right-6 z-20 flex gap-1 rounded-full border border-white/10 bg-black/50 p-1">
-                            {(['en', 'pt'] as const).map((code) => (
-                                <button
-                                    key={code}
-                                    type="button"
-                                    onClick={() => setConfig({ ...config, language: code })}
-                                    className={`px-3 py-1 rounded-full text-[11px] font-semibold tracking-wide ${config.language === code ? 'bg-white text-black' : 'text-white/60'}`}
-                                >
-                                    {getTranslation(config, code === 'en' ? 'lang.en' : 'lang.pt')}
-                                </button>
-                            ))}
-                        </div>
                         <AnimatePresence mode="wait">
                             {searchTerm.trim() ? (
                                 <SearchResultsView

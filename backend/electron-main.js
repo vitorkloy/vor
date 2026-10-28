@@ -3855,34 +3855,33 @@ app.whenReady().then(async () => {
         return { ok: true };
       });
       ipcMain.handle("shift-tool-status", () => shiftWheels.tools());
-      require("./file-wheels.cjs").start({
-        onEvent(ev) {
-          if (ev.type === "down") {
-            fileDragOrigin = { x: ev.x, y: ev.y };
-            fileDragOpen = false;
-            fileDragMode = null;
-            return;
-          }
-          if (ev.type === "move" && fileDragOrigin && !fileDragOpen) {
-            const dx = ev.x - fileDragOrigin.x;
-            const dy = ev.y - fileDragOrigin.y;
-            if (dx * dx + dy * dy < 144) return;
-            const mode = fileWheelMode(ev);
-            if (!mode) return;
-            revealFileWheel(ev.x, ev.y, mode, "");
-            return;
-          }
-          if (ev.type === "up") {
-            fileDragOrigin = null;
-            if (!fileDragOpen || !mainWindow || mainWindow.isDestroyed()) {
-              fileDragOpen = false;
-              return;
-            }
-            fileDragOpen = false;
-            mainWindow.webContents.send("mmb-release");
-          }
-        },
+      const { uIOhook } = require("uiohook-napi");
+      uIOhook.on("mousedown", (e) => {
+        if (e.button !== 1) return;
+        fileDragOrigin = { x: e.x, y: e.y };
+        fileDragOpen = false;
+        fileDragMode = null;
       });
+      uIOhook.on("mousemove", (e) => {
+        if (!fileDragOrigin || fileDragOpen) return;
+        const dx = e.x - fileDragOrigin.x;
+        const dy = e.y - fileDragOrigin.y;
+        if (dx * dx + dy * dy <= 144) return;
+        const mode = fileWheelMode({ shift: e.shiftKey, ctrl: e.ctrlKey, alt: e.altKey });
+        if (!mode) return;
+        revealFileWheel(e.x, e.y, mode, "");
+      });
+      uIOhook.on("mouseup", (e) => {
+        if (e.button !== 1) return;
+        fileDragOrigin = null;
+        if (!fileDragOpen || !mainWindow || mainWindow.isDestroyed()) {
+          fileDragOpen = false;
+          return;
+        }
+        fileDragOpen = false;
+        mainWindow.webContents.send("mmb-release");
+      });
+      uIOhook.start();
     } catch (e) { diagLog(`[FileWheels] ${e.message}`); }
     tray.setContextMenu(contextMenu);
 
