@@ -102,7 +102,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "guid": "7c2a9e14-6b21-4d0a-9f33-000000000200",
-      "artifactName": "__x64-setup.",
+      "artifactName": "VOR_0.2.0_x64-setup.${ext}",
       "include": "nsis/installer.nsh",
       "deleteAppDataOnUninstall": true
     },
