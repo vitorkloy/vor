@@ -2113,6 +2113,14 @@ export default function App() {
       clientSize?: { width: number; height: number } | null;
       paintToken?: number;
     }) => {
+      /**
+       * Roda de apps (MMB/atalho) nunca herda fatias de ficheiro. O payload de um arrasto anterior
+       * cancelado ficava em `fileWheel` e o clique do meio seguinte abria primeiro a roda do
+       * ShiftDrop (e só depois voltava ao normal).
+       */
+      if (data.source !== 'file' && !data.closeOnly && fileWheelRef.current) {
+        flushSync(() => setFileWheel(null));
+      }
       if (data.source === 'file' && data.fileWheel) {
         flushSync(() => {
           setFileWheel({
@@ -2476,6 +2484,8 @@ export default function App() {
     isHolding.current = false;
 
     if (!selectedId && isDesktopMode && !panelSurfaceOpen) {
+      // Fechar sem escolha também descarta a roda de ficheiro; senão ela reaparece no próximo MMB.
+      if (fileWheelRef.current) setFileWheel(null);
       window.electron?.setWindowSize('small', windowCenterScreenPoint());
       return;
     }
@@ -2488,9 +2498,7 @@ export default function App() {
         if (!slice || slice.available === false) {
           setExecutionError(selectedApp?.description || slice?.reason || 'Indisponível');
         } else {
-          void window.electron?.runFileSlice?.(selectedId, dragged.path).then((result) => {
-            if (result && result.ok === false && result.error) setExecutionError(result.error);
-          });
+          void window.electron?.runFileSlice?.(selectedId, dragged.path);
         }
       }
       if (isDesktopMode && !panelSurfaceOpen) {
@@ -2619,6 +2627,9 @@ export default function App() {
         const key = item.id.split(':')[1] || item.title;
         const title = names[key] || item.title;
         const reason = item.reason ? (reasons[item.reason] || item.reason) : '';
+        const short: Record<string, string> = {
+          resize50: '50%', resize1080: '1080P', rotate90: pt ? 'GIRAR' : 'ROTATE',
+        };
         const icons: Record<string, string> = {
           compress: 'Minimize2', removeMetadata: 'Eraser', editImage: 'PenLine', annotateImage: 'MessageSquare',
           frameImage: 'Frame', cropImage: 'Crop', cropVideo: 'Crop', redactImage: 'EyeOff', redactVideo: 'EyeOff',
@@ -2628,11 +2639,12 @@ export default function App() {
           joinVideos: 'Link', videoSnapshots: 'Camera', audioToVideo: 'Clapperboard', audioChannels: 'Headphones',
           createCollage: 'LayoutGrid', redactAudio: 'AudioLines', airDrop: 'Share2', float: 'PictureInPicture2',
           copy: 'Copy', move: 'FolderInput', copyPath: 'Clipboard', openTerminal: 'Terminal',
+          resize50: 'Scaling', resize1080: 'Monitor', rotate90: 'RotateCw',
         };
         return {
           id: item.id,
           type: 'app' as const,
-          label: item.available ? title : `${title} · ${reason || (pt ? 'Indisponível' : 'Unavailable')}`,
+          label: item.available ? (short[key] || title) : `${short[key] || title} · ${reason || (pt ? 'Indisponível' : 'Unavailable')}`,
           iconName: item.id.startsWith('conv:') ? 'FileOutput' : (icons[key] || 'File'),
           command: item.id,
           commandType: 'app' as const,
@@ -2983,7 +2995,7 @@ export default function App() {
                   <AlertTriangle size={20} />
                 </div>
                 <div className="flex-1">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-white/60 mb-1">Execution Error</div>
+                  <div className="text-[10px] font-black uppercase tracking-widest text-white/60 mb-1">Não foi possível</div>
                   <div className="text-sm font-bold text-white leading-tight">{executionError}</div>
                 </div>
                 <button onClick={() => setExecutionError(null)} className="text-white/40 hover:text-white transition-colors">

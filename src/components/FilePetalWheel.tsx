@@ -1,5 +1,6 @@
 import React from 'react';
 import type { AppItem } from '../types';
+import { getIcon } from '../iconMap';
 
 /** Medidas do ShiftDrop (anel, pétalas, vão). O viewBox é −126…126. */
 const M = {
@@ -15,13 +16,36 @@ function polar(radius: number, angle: number): [number, number] {
   return [Math.cos(angle) * radius, -Math.sin(angle) * radius];
 }
 
+/** Ângulo de referência das pétalas: 3 itens começam à esquerda; o resto no topo. */
+export function filePetalStart(count: number): number {
+  return count === 3 ? Math.PI : Math.PI / 2;
+}
+
+/**
+ * Índice da fatia sob o vetor (dx, dy) a partir do centro — a mesma matemática do desenho.
+ * `dy` positivo é para baixo (ecrã).
+ */
+export function filePetalIndexAt(dx: number, dy: number, count: number): number {
+  if (count <= 0) return 0;
+  const start = filePetalStart(count);
+  const step = (Math.PI * 2) / count;
+  const theta = Math.atan2(-dy, dx);
+  const index = Math.round((start - theta) / step);
+  return ((index % count) + count) % count;
+}
+
+/** Raio do buraco central em píxeis (viewBox −126…126 desenhado a 200px). */
+export function filePetalDeadZonePx(): number {
+  return Math.ceil(M.inner * (200 / 252)) + 2;
+}
+
 function fmt(radius: number, angle: number): string {
   return polar(radius, angle).map((n) => n.toFixed(3)).join(' ');
 }
 
 /** Um setor. O ângulo 0 fica no topo, como na roda do ShiftDrop. */
 function petalPath(index: number, count: number): string {
-  const start = (count === 3 ? Math.PI : Math.PI / 2) - (Math.PI * 2 * index) / count;
+  const start = filePetalStart(count) - (Math.PI * 2 * index) / count;
   const step = (Math.PI * 2) / count;
   const left = start - step / 2;
   const right = start + step / 2;
@@ -51,14 +75,13 @@ function petalPath(index: number, count: number): string {
 }
 
 function labelPoint(index: number, count: number): [number, number] {
-  const angle = (count === 3 ? Math.PI : Math.PI / 2) - (Math.PI * 2 * index) / count;
+  const angle = filePetalStart(count) - (Math.PI * 2 * index) / count;
   const radius = M.labelInner + (M.outer - M.labelInner) * 0.56;
   return polar(radius, angle);
 }
 
-function shortLabel(label: string): string {
-  const head = label.split('·')[0]?.trim() || label;
-  return head.length > 14 ? `${head.slice(0, 13)}…` : head;
+function petalText(label: string): string {
+  return label.split('·')[0]?.trim() || label;
 }
 
 interface FilePetalWheelProps {
@@ -107,11 +130,13 @@ export function FilePetalWheel({ items, activeIndex, centerActive, formatLabel, 
       </div>
     );
   }
+  const labelWidth = count >= 6 ? 56 : 88;
+  const labelSize = count >= 6 ? 10 : 11;
   const hovered = activeIndex !== null ? items[activeIndex] : null;
   const pill = centerActive
     ? 'Cancelar'
     : hovered
-      ? (hovered.description || shortLabel(hovered.label))
+      ? (hovered.description || petalText(hovered.label))
       : (formatLabel || '');
 
   return (
@@ -146,6 +171,9 @@ export function FilePetalWheel({ items, activeIndex, centerActive, formatLabel, 
         const disabled = item.fileDisabled === true;
         const [x, y] = labelPoint(index, count);
         const color = active ? (disabled ? '#151515' : '#0a0a0b') : (disabled ? 'rgba(255,255,255,0.45)' : '#f4f4f5');
+        const text = petalText(item.label);
+        const tooWide = text.length * labelSize * 0.55 > labelWidth * 2;
+        const Icon = item.id.startsWith('conv:') ? null : getIcon(item.iconName);
         return (
           <div
             key={`${item.id}-label-${index}`}
@@ -153,18 +181,28 @@ export function FilePetalWheel({ items, activeIndex, centerActive, formatLabel, 
             style={{
               left: size / 2 + x * scale,
               top: size / 2 + y * scale,
-              width: 72,
+              width: labelWidth,
               transform: 'translate(-50%, -50%)',
               color,
               fontFamily: 'var(--font-radial)',
               fontWeight: 600,
-              fontSize: 12,
-              lineHeight: 1.15,
+              fontSize: labelSize,
+              lineHeight: 1.1,
               letterSpacing: '0.01em',
               textShadow: active ? 'none' : '0 1px 2px rgba(0,0,0,0.85)',
             }}
           >
-            {shortLabel(item.label)}
+            {Icon ? <Icon size={count >= 8 ? 12 : 14} strokeWidth={1.75} style={{ margin: '0 auto 2px', display: 'block' }} /> : null}
+            <div style={{
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              overflowWrap: tooWide ? 'anywhere' : 'normal',
+            }}
+            >
+              {text}
+            </div>
           </div>
         );
       })}
